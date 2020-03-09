@@ -1,4 +1,4 @@
-# pump_up_the_jamz
+# pump_up_the_jam
 Hunting HFR for signals
 
 
