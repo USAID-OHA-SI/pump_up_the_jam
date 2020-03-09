@@ -20,4 +20,6 @@ Steps:
  ii. By mechanism, by country  
 1. Trends in completness and correctness
 
+![IMG_1803](https://user-images.githubusercontent.com/8836685/76236226-be46f780-6202-11ea-9b11-250ba7e698df.jpg)
+
 
