@@ -66,7 +66,7 @@ library(Wavelength)
   #append
     df  <- df_datim_rpt %>% 
       mutate_all(as.character) %>% 
-      dplyr::bind_rows(hfr)
+      bind_rows(hfr)
     
   #make sure all have the HFR PD (missing for DATIM)
     df <- df %>% 
