@@ -8,7 +8,7 @@
 # things
 
 start_date <- "2019-09-30"
-weeks <- 12
+weeks <- 16
 hfr <- "C:/Users/Josh/Documents/data/fy20_q1_v1/hfr/HFR_Tableau_2020.03_20200122.csv"
 datim_folder <- "C:/Users/Josh/Documents/data/fy20_q1_v1/hfr/mer"
 out <- "C:/Users/Josh/Documents/data/fy20_q1_v1/hfr/out"
@@ -33,12 +33,13 @@ rm(df_datim, dates)
 
 hfr <- readr::read_csv(hfr)
 
+
 hfr <- hfr %>% 
   dplyr::select(-mer_results, -mer_targets)
 
 # Step 3: merge MER targets and results back in
 
-df  <- dplyr::left_join(hfr, df_datim_rpt)
+df  <- dplyr::bind_rows(hfr, df_datim_rpt)
 
 # Step 4: write
 
