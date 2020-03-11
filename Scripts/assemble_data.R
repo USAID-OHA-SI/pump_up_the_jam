@@ -48,8 +48,14 @@ library(Wavelength)
     
   #remove extra objects
     rm(df_datim, dates, files)
+
+
+# AGGREGATE MER -----------------------------------------------------------
+
+  #TODO
+    #drop disaggs - agecoarse, sex
+    #aggregate
     
-  
 
 # IMPORT HFR --------------------------------------------------------------
 
@@ -61,6 +67,22 @@ library(Wavelength)
     hfr <- select(hfr, -mer_targets)
 
 
+# REMOVE EXTRA ------------------------------------------------------------
+
+#TODO
+    #drop all heirarchy exepect orgunituid
+      #operatingunit, countryname, snu1, psnu, psnuuid, community, orgunit
+    #drop partner info, except mech_code
+      #primepartner, mech_name
+    #remove disaggregates
+      #agecoarse, sex, otherdisaggregate
+
+# AGGREGATE HFR -----------------------------------------------------------
+
+    #TODO
+    #aggregate after removing extra
+    
+    
 # APPEND HFR + DATIM ------------------------------------------------------
 
   #append
@@ -84,7 +106,14 @@ library(Wavelength)
       group_by_at(grp) %>% 
       summarise_at(vars(val, mer_results, mer_targets), sum, na.rm = TRUE) %>% 
       ungroup()
+
+# MERGE META --------------------------------------------------------------
+
+  #TODO
+    #download Google Drive heirarchy and mechanism "tables"
     
+  #left merge those onto the combo dataset
+        
   #arrange var order
     df_agg <- df_agg %>% 
       select(operatingunit, countryname, snu1, psnu, psnuuid, community, orgunit, orgunituid,
