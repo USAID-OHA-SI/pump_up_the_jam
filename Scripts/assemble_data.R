@@ -29,7 +29,7 @@ library(Wavelength)
     list.files(datim_folder, "DATIM", full.names = TRUE) %>% unzip(exdir = datim_folder)
   
   #store files paths as vecotre for import
-    files <- list.files(datim_folder, "HFR_FY20.*csv", full.names = TRUE)
+    files <- list.files(datim_folder, "HFR_FY20Q1.*csv", full.names = TRUE)
     
   #import and bind together
     df_datim <- map_dfr(.x = files,
