@@ -1,5 +1,5 @@
 ## PROJECT:  Pump up the jam
-## AUTHOR:   A.Chafetz | USAID
+## AUTHOR:   A.Chafetz, T.Essam | USAID
 ## LICENSE:  MIT
 ## PURPOSE:  calculate completeness of reporting
 ## DATE:     2020-03-11
@@ -21,30 +21,29 @@ out_folder <- "Dataout"
 # IMPORT ------------------------------------------------------------------
 
   #load joint HFR + DATIM dataset for FY20Q1 (created in Scripts/assemble_data.R)
-    df_joint <- vroom(file.path(out_folder, "HFR_DATIM_FY20Q1_20200311.csv"))  
+    df_joint <- vroom(file.path(out_folder, "HFR_DATIM_FY20Q1_20200311.csv"),
+                      col_types = c(.default = "c"))  
   
     
 # MUNGE -------------------------------------------------------------------
 
-  #fix mech code
-    df_joint <- mutate(df_joint, mech_code = as.character(mech_code))
-    
   #change hfr reporting variable for clarity
     df_joint <- rename(df_joint, hfr_results = val)
     
   #remove data post Q1 for all but TX_CURR
     df_joint <- df_joint %>% 
+      mutate(date = as_date(date)) %>% 
       filter(!(indicator != "TX_CURR" & date >= "2019-12-30")) 
     
     #check
       # df_joint %>%
       #   count(date, indicator) %>%
       #   spread(indicator, n)
-  
+
   #reshape long to preserve NAs for non reporting
     df_joint_lng <- df_joint %>% 
-      gather(type, value, hfr_results, mer_results, mer_targets, na.rm = TRUE)
-    
+      gather(type, value, hfr_results, mer_results, mer_targets, na.rm = TRUE) %>% 
+      mutate(value = as.double(value))
     
   #create a FY20Q1 value for non-TX_CURR indicators
     df_q1_sum <- df_joint_lng %>% 
@@ -71,16 +70,55 @@ out_folder <- "Dataout"
 
 # MERGE DATIM FLAGS -------------------------------------------------------
 
-#TODO
+  #import volume weighting
+    df_datim_wgts <- vroom(file.path(out_folder, "DATIM_FLAGS_2020031220200312.csv")) %>% 
+      mutate_at(vars(mech_code, fy), as.character)
+    
+  #drop vars before merging
+    df_datim_wgts <- df_datim_wgts %>% 
+      select(-c(mer_results, mer_targets, operatingunit))
+    
+  #join
+    df_q1 <- left_join(df_q1, df_datim_wgts)
     
 # COMPLETENESS ------------------------------------------------------------
 
-    df_q1 %>% 
+  #create flags for whether site reported HFR and if site exists in DATIM
+    df_q1 <- df_q1 %>% 
       mutate(has_hfr_reporting = !is.na(hfr_results),
-             is_datim_site_results = !is.na(mer_results) & mer_results > 0,
-             is_datim_site_targets = !is.na(mer_targets) & mer_targets > 0)  %>% 
-      View()
+             is_datim_site = mer_results > 0 | mer_targets > 0)
+  
+  #remove where HFR reporting against mech x site that does not have DATIM results/targets
+    df_q1 <- df_q1 %>% 
+      filter(!(has_hfr_reporting == TRUE & is_datim_site == FALSE))
+    
+  #mech x site completeness report
+    df_q1 %>% 
+      filter(!(hfr_results == 0 & mer_results == 0)) %>% 
+      group_by(operatingunit, indicator) %>% 
+      summarise_at(vars(has_hfr_reporting, is_datim_site), sum, na.rm = TRUE) %>% 
+      ungroup() %>% 
+      mutate(completeness = case_when(is_datim_site >  0 ~ has_hfr_reporting / is_datim_site)) %>% 
+      print(n = Inf)
+    
+  #mech x site completeness report for HV sites
+    df_q1 %>% 
+      filter(!(hfr_results == 0 & mer_results == 0),
+             impflag_targets == 1) %>% 
+      group_by(operatingunit, indicator) %>% 
+      summarise_at(vars(has_hfr_reporting, is_datim_site), sum, na.rm = TRUE) %>% 
+      ungroup() %>% 
+      mutate(completeness = case_when(is_datim_site >  0 ~ has_hfr_reporting / is_datim_site)) %>% 
+      print(n = Inf)
+    
+
+# EXPORT ------------------------------------------------------------------
+    
+  #store file name
+    filename <- paste0("HFR_DATIM_FY20Q1_Agg_", format(Sys.Date(), "%Y%m%d"), ".csv")
+    
+  #save
+    write_csv(df_q1, file.path(out_folder, filename), na = "")
       
-    count(operatingunit, mechanism, orgunituid)
     
     
