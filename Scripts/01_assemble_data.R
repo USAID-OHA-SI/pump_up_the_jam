@@ -35,6 +35,15 @@ library(Wavelength)
     df_datim <- map_dfr(.x = files,
                         .f = ~readr::read_csv(.x))
     
+  #fix TX_MMD "targets"
+    df_datim_mmd <- df_datim %>% 
+      filter(indicator == "TX_CURR") %>% 
+      mutate(indicator = "TX_MMD",
+             mer_results = NA)
+    
+    df_datim <- bind_rows(df_datim, df_datim_mmd)
+    rm(df_datim_mmd)
+    
   #aggregate to level of detail desired
     df_datim <- df_datim %>% 
       group_by(orgunituid, mech_code, fy, indicator) %>% 
@@ -61,9 +70,6 @@ library(Wavelength)
     df_hfr <- list.files(datim_folder, "inprocess", full.names = TRUE) %>% 
       read_csv(col_types = c(.default = "c"))
       
-  #TODO
-    # factor in MMD targets from TX_CURR
-    
   #aggregate after removing extra
     df_hfr <- df_hfr %>% 
       mutate(val = as.numeric(val)) %>% 
