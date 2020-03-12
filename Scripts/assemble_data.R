@@ -58,48 +58,38 @@ library(Wavelength)
 # IMPORT HFR --------------------------------------------------------------
 
   #import
-    hfr <- list.files(datim_folder, "inprocess", full.names = TRUE) %>% 
+    df_hfr <- list.files(datim_folder, "inprocess", full.names = TRUE) %>% 
       read_csv(col_types = c(.default = "c"))
-  
-  #remove mer_targets, updated from DATIM with results above
-    hfr <- select(hfr, -mer_targets)
-
-
-# REMOVE EXTRA ------------------------------------------------------------
-
-#TODO
-    #drop all heirarchy exepect orgunituid
-      #operatingunit, countryname, snu1, psnu, psnuuid, community, orgunit
-    #drop partner info, except mech_code
-      #primepartner, mech_name
-    #remove disaggregates
-      #agecoarse, sex, otherdisaggregate
 
 # AGGREGATE HFR -----------------------------------------------------------
-
-    #TODO
-    #aggregate after removing extra
+      
+  #aggregate after removing extra
+    df_hfr <- df_hfr %>% 
+      mutate(val = as.numeric(val)) %>% 
+      group_by(orgunituid, mech_code, fy, date, indicator) %>% 
+      summarise_at(vars(val), sum, na.rm = TRUE) %>% 
+      ungroup()
     
     
 # APPEND HFR + DATIM ------------------------------------------------------
 
   #append
-    df  <- df_datim_rpt %>% 
+    df_joint <- df_datim_rpt %>% 
       mutate_all(as.character) %>% 
-      bind_rows(hfr)
+      bind_rows(df_hfr)
     
   #make sure all have the HFR PD (missing for DATIM)
-    df <- df %>% 
+    df_joint <- df_joint %>% 
       mutate(date = as_date(date)) %>% 
       hfr_assign_pds()
   
   #remove primeparnter and mech name to possible incompatibility
-    df <- select(df, -c(primepartner, mech_name))
+    df_joint <- select(df_joint, -c(primepartner, mech_name))
     
   #aggregate where possible
-    grp <- setdiff(names(df), c("val", "mer_results", "mer_targets"))
+    grp <- setdiff(names(df_joint), c("val", "mer_results", "mer_targets"))
     
-    df_agg <- df %>% 
+    df_joint_agg <- df_joint %>% 
       mutate_at(vars(val, mer_results, mer_targets), as.double) %>% 
       group_by_at(grp) %>% 
       summarise_at(vars(val, mer_results, mer_targets), sum, na.rm = TRUE) %>% 
@@ -113,7 +103,7 @@ library(Wavelength)
   #left merge those onto the combo dataset
         
   #arrange var order
-    df_agg <- df_agg %>% 
+    df_joint_agg <- df_joint_agg %>% 
       select(operatingunit, countryname, snu1, psnu, psnuuid, community, orgunit, orgunituid,
              fundingagency, mech_code,
              fy, hfr_pd, date, 
@@ -128,5 +118,5 @@ library(Wavelength)
     filename <- paste0("merged_datim_hfr_", format(Sys.Date(), "%Y.%m.%d"), ".csv")
   
   #save
-    write_csv(df_datim_rpt, file.path(out, filename))
+    write_csv(df_joint_agg, file.path(out, filename))
 
