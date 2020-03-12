@@ -3,8 +3,7 @@
 ## LICENSE:  MIT
 ## PURPOSE:  assemble MER and HFR data
 ## DATE:     2020-03-10
-## UPDATED:
-
+## UPDATED:  2020-03-11
 
 
 # DEPENDENCIES ------------------------------------------------------------
@@ -18,8 +17,8 @@ library(Wavelength)
 
   start_date <- "2019-09-30"
   weeks <- 16
-  hfr_folder <- "data"
-  datim_folder <- "data"
+  hfr_folder <- "Data"
+  datim_folder <- "Data"
   out_folder <- "Dataout"
 
 
@@ -35,7 +34,13 @@ library(Wavelength)
   #import and bind together
     df_datim <- map_dfr(.x = files,
                         .f = ~readr::read_csv(.x))
-  
+    
+  #aggregate to level of detail desired
+    df_datim <- df_datim %>% 
+      group_by(orgunituid, mech_code, fy, indicator) %>% 
+      summarise_at(vars(starts_with("mer")), sum, na.rm = TRUE) %>% 
+      ungroup()
+    
   #identify dates to repeat df_datim
     dates <- as_date(start_date) %>% seq(by = 7, length.out = weeks)
   
@@ -48,15 +53,8 @@ library(Wavelength)
     
   #remove extra objects
     rm(df_datim, dates, files)
-
-
-# AGGREGATE MER -----------------------------------------------------------
-
-  #TODO
-    #drop disaggs - agecoarse, sex
-    #aggregate
     
-
+    
 # IMPORT HFR --------------------------------------------------------------
 
   #import
