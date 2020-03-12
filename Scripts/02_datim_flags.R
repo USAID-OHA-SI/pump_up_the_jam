@@ -33,7 +33,7 @@
   
   
   #unzip Google Drive download of all MER FY20 data
-  #list.files(datim_folder, "DATIM", full.names = TRUE) %>% unzip(exdir = datim_folder)
+  list.files(datim_folder, "DATIM", full.names = TRUE) %>% unzip(exdir = datim_folder)
   
   #store files paths as vecotre for import
   files <- list.files(datim_folder, "HFR_FY20Q1.*csv", full.names = TRUE)
@@ -113,6 +113,34 @@
       tgts = sum(impflag_targets),
       both = sum(impflag_both)) %>%
     print(n = Inf)
+  
+  # plot results for summary graphic
+  df_datim_wgts %>% 
+    group_by(operatingunit, indicator) %>% 
+    summarise(n = mean(ou_total_sites),
+      results_flags = sum(impflag_results),
+      targets_flags = sum(impflag_targets),
+      both_flags = sum(impflag_both)) %>%
+    ungroup() %>% 
+    gather(flagtype, value, results_flags:both_flags) %>% 
+    mutate(ou_order = fct_reorder(operatingunit, value, .fun = max, .desc = TRUE),
+      ind_order = fct_reorder(indicator, value),
+      logval = log(value)) %>% 
+    ggplot(., aes(ind_order, flagtype, fill = logval)) +
+    geom_tile(colour = "white") + geom_text(aes(label = ifelse(value != 0, value, NA)), color = "#303030") +
+    facet_wrap(~ou_order) + coord_flip() +
+    scale_fill_viridis_c(option = "A", begin = 0.5, na.value = "#f1f1f1", direction = -1) +
+    theme_minimal() +
+    theme(strip.text = element_text(hjust = 0),
+      legend.position = "none") +
+    labs(x = "", y = "", title = "Summary of important sites for targets and results",
+      caption = str_c("Created on ", format(Sys.Date(), "%Y%m%d")))
+  
+  #remove files (just keep zipped folder)
+  unlink(files)
+  
+  #remove extra objects
+  rm(df_datim, files)
   
   
   #store file name
