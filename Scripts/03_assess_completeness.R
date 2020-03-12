@@ -93,32 +93,43 @@ out_folder <- "Dataout"
       filter(!(has_hfr_reporting == TRUE & is_datim_site == FALSE))
     
   #mech x site completeness report
-    df_q1 %>% 
+    df_completeness <- df_q1 %>% 
       filter(!(hfr_results == 0 & mer_results == 0)) %>% 
       group_by(operatingunit, indicator) %>% 
       summarise_at(vars(has_hfr_reporting, is_datim_site), sum, na.rm = TRUE) %>% 
       ungroup() %>% 
-      mutate(completeness = case_when(is_datim_site >  0 ~ has_hfr_reporting / is_datim_site)) %>% 
-      print(n = Inf)
+      mutate(completeness = case_when(is_datim_site >  0 ~ has_hfr_reporting / is_datim_site),
+             site_type = "All")
+             
+      print(df_completeness, n = Inf)
     
   #mech x site completeness report for HV sites
-    df_q1 %>% 
+    df_completeness_imp <- df_q1 %>% 
       filter(!(hfr_results == 0 & mer_results == 0),
              impflag_targets == 1) %>% 
       group_by(operatingunit, indicator) %>% 
       summarise_at(vars(has_hfr_reporting, is_datim_site), sum, na.rm = TRUE) %>% 
       ungroup() %>% 
-      mutate(completeness = case_when(is_datim_site >  0 ~ has_hfr_reporting / is_datim_site)) %>% 
-      print(n = Inf)
+      mutate(completeness = case_when(is_datim_site >  0 ~ has_hfr_reporting / is_datim_site),
+             site_type = "Important (Target-based)")
+             
+      print(df_completeness_imp, n = Inf)
     
+  #combine completeness for viz
+      df_completeness_viz <- df_completeness %>% 
+        bind_rows(df_completeness_imp) %>% 
+        select(site_type, everything())
+        
 
 # EXPORT ------------------------------------------------------------------
     
   #store file name
     filename <- paste0("HFR_DATIM_FY20Q1_Agg_", format(Sys.Date(), "%Y%m%d"), ".csv")
+    filename_comp <- paste0("HFR_Completeness_", format(Sys.Date(), "%Y%m%d"), ".csv")
     
   #save
     write_csv(df_q1, file.path(out_folder, filename), na = "")
+    write_csv(df_completeness_viz, file.path(out_folder, filename_comp), na = "")
       
     
     
