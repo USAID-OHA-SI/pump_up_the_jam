@@ -1,5 +1,5 @@
 ## PROJECT:  Pump up the jam
-## AUTHOR:   jdavis, A.Chafetz | USAID
+## AUTHOR:   T.Essam, A.Chafetz | USAID
 ## LICENSE:  MIT
 ## PURPOSE:  flag DATIM sites with targets and results
 ## DATE:     2020-03-12
@@ -33,7 +33,7 @@
   
   
   #unzip Google Drive download of all MER FY20 data
-  #list.files(datim_folder, "DATIM", full.names = TRUE) %>% unzip(exdir = datim_folder)
+  list.files(datim_folder, "DATIM", full.names = TRUE) %>% unzip(exdir = datim_folder)
   
   #store files paths as vecotre for import
   files <- list.files(datim_folder, "HFR_FY20Q1.*csv", full.names = TRUE)
@@ -41,6 +41,9 @@
   #import and bind together
   df_datim <- map_dfr(.x = files,
     .f = ~readr::read_csv(.x))
+  
+  #remove files (just keep zipped folder)
+    unlink(files)
   
   #aggregate to level of detail desired
   #flag sites with results but no targets, flag number of mechs per site
