@@ -40,3 +40,20 @@ out_folder <- "Dataout"
     #   spread(indicator, n)
     
     
+  #adjust TX_CURR
+    df_tx <- df_joint %>% 
+      filter(indicator == "TX_CURR") %>% 
+      select(-date) %>% 
+      group_by_if(is.character) %>% 
+      summarise_if(is.numeric, max, na.rm = TRUE) %>% 
+      ungroup()
+    
+    df_joint <- df_joint %>% 
+      filter(indicator != "TX_CURR") %>% 
+      bind_rows(df_tx)
+    
+  #full period comp
+    df_joint %>% 
+      group_by()
+    
+    
