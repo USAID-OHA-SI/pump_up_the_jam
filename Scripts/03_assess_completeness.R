@@ -68,6 +68,19 @@ out_folder <- "Dataout"
     df_q1 <- bind_rows(df_q1_sum, df_q1_max)  %>% 
       spread(type, value)
     
-  
+
+# MERGE DATIM FLAGS -------------------------------------------------------
+
+#TODO
+    
+# COMPLETENESS ------------------------------------------------------------
+
+    df_q1 %>% 
+      mutate(has_hfr_reporting = !is.na(hfr_results),
+             is_datim_site_results = !is.na(mer_results) & mer_results > 0,
+             is_datim_site_targets = !is.na(mer_targets) & mer_targets > 0)  %>% 
+      View()
+      
+    count(operatingunit, mechanism, orgunituid)
     
     
