@@ -76,24 +76,16 @@ library(Wavelength)
   #append
     df_joint <- df_datim_rpt %>% 
       mutate_all(as.character) %>% 
-      bind_rows(df_hfr)
+      full_join(df_hfr)
     
   #make sure all have the HFR PD (missing for DATIM)
     df_joint <- df_joint %>% 
       mutate(date = as_date(date)) %>% 
       hfr_assign_pds()
-  
-  #remove primeparnter and mech name to possible incompatibility
-    df_joint <- select(df_joint, -c(primepartner, mech_name))
     
-  #aggregate where possible
-    grp <- setdiff(names(df_joint), c("val", "mer_results", "mer_targets"))
-    
-    df_joint_agg <- df_joint %>% 
-      mutate_at(vars(val, mer_results, mer_targets), as.double) %>% 
-      group_by_at(grp) %>% 
-      summarise_at(vars(val, mer_results, mer_targets), sum, na.rm = TRUE) %>% 
-      ungroup()
+  #arrange
+    df_joint <- df_joint %>% 
+      select(fy, hfr_pd, date, everything())
 
 # MERGE META --------------------------------------------------------------
 
