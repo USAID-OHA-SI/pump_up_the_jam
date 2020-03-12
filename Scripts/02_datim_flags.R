@@ -1,5 +1,5 @@
 ## PROJECT:  Pump up the jam
-## AUTHOR:   jdavis, A.Chafetz | USAID
+## AUTHOR:   T.Essam, A.Chafetz | USAID
 ## LICENSE:  MIT
 ## PURPOSE:  flag DATIM sites with targets and results
 ## DATE:     2020-03-12
@@ -42,7 +42,10 @@
   df_datim <- map_dfr(.x = files,
     .f = ~readr::read_csv(.x))
   
-  #aggregate to level of detail desired
+  #remove files (just keep zipped folder)
+    unlink(files)
+  
+  X#aggregate to level of detail desired
   #flag sites with results but no targets, flag number of mechs per site
   df_datim <- df_datim %>% 
     group_by(orgunituid, mech_code, fy, indicator, operatingunit) %>% 
@@ -144,7 +147,7 @@
   
   
   #store file name
-  filename <- paste0("DATIM_FLAGS_20200312", format(Sys.Date(), "%Y%m%d"), ".csv")
+  filename <- paste0("DATIM_FLAGS", format(Sys.Date(), "%Y%m%d"), ".csv")
   
   #save
   write_csv(df_datim_wgts, file.path(out_folder, filename), na = "")

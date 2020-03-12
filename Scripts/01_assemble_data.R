@@ -61,6 +61,9 @@ library(Wavelength)
     df_hfr <- list.files(datim_folder, "inprocess", full.names = TRUE) %>% 
       read_csv(col_types = c(.default = "c"))
       
+  #TODO
+    # factor in MMD targets from TX_CURR
+    
   #aggregate after removing extra
     df_hfr <- df_hfr %>% 
       mutate(val = as.numeric(val)) %>% 
