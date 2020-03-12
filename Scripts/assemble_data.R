@@ -54,14 +54,12 @@ library(Wavelength)
   #remove extra objects
     rm(df_datim, dates, files)
     
-    
-# IMPORT HFR --------------------------------------------------------------
+
+# IMPORT + AGGREGATE HFR --------------------------------------------------
 
   #import
     df_hfr <- list.files(datim_folder, "inprocess", full.names = TRUE) %>% 
       read_csv(col_types = c(.default = "c"))
-
-# AGGREGATE HFR -----------------------------------------------------------
       
   #aggregate after removing extra
     df_hfr <- df_hfr %>% 
@@ -71,9 +69,9 @@ library(Wavelength)
       ungroup()
     
     
-# APPEND HFR + DATIM ------------------------------------------------------
+# MERGE HFR + DATIM -------------------------------------------------------
 
-  #append
+  #merge
     df_joint <- df_datim_rpt %>% 
       mutate_all(as.character) %>% 
       full_join(df_hfr)
@@ -83,32 +81,41 @@ library(Wavelength)
       mutate(date = as_date(date)) %>% 
       hfr_assign_pds()
     
-  #arrange
+  #arrange var order
     df_joint <- df_joint %>% 
       select(fy, hfr_pd, date, everything())
 
 # MERGE META --------------------------------------------------------------
 
-  #TODO
-    #download Google Drive heirarchy and mechanism "tables"
+  #import hierarchy
+    df_hierarchy <- file.path(datim_folder, "HFR_FY20_GLOBAL_orghierarchy_20200306.csv") %>% 
+      read_csv() %>% 
+      select(-level)
     
-  #left merge those onto the combo dataset
+  #merge hierarchy onto joint file
+    df_joint <- left_join(df_joint, df_hierarchy)
+  
+  #import mechanism info
+    df_mech <- file.path(datim_folder, "HFR_FY20_GLOBAL_mechanisms_20200306.csv") %>% 
+      read_csv(col_types = c(.default = "c")) %>% 
+      select(-operatingunit)
+    
+  #merge mech info onto joint file
+    df_joint <- left_join(df_joint, df_mech)
         
   #arrange var order
-    df_joint_agg <- df_joint_agg %>% 
-      select(operatingunit, countryname, snu1, psnu, psnuuid, community, orgunit, orgunituid,
-             fundingagency, mech_code,
+    df_joint <- df_joint %>% 
+      select(operatingunit:facility, orgunit, orgunituid, latitude, longitude,
+             fundingagency, mech_code, mech_name, primepartner,
              fy, hfr_pd, date, 
-             indicator, sex, agecoarse, otherdisaggregate,
-             val, mer_results, mer_targets
-             )
-
+             indicator,
+             val, mer_results, mer_targets)
 
 # EXPORT ------------------------------------------------------------------
 
   #store file name
-    filename <- paste0("merged_datim_hfr_", format(Sys.Date(), "%Y.%m.%d"), ".csv")
+    filename <- paste0("HFR_DATIM_FY20Q1_", format(Sys.Date(), "%Y%m%d"), ".csv")
   
   #save
-    write_csv(df_joint_agg, file.path(out, filename))
+    write_csv(df_joint, file.path(out_folder, filename), na = "")
 
