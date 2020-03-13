@@ -147,7 +147,7 @@
   
   
   #store file name
-  filename <- paste0("DATIM_FLAGS", format(Sys.Date(), "%Y%m%d"), ".csv")
+  filename <- paste0("DATIM_FLAGS_", format(Sys.Date(), "%Y%m%d"), ".csv")
   
   #save
   write_csv(df_datim_wgts, file.path(out_folder, filename), na = "")
