@@ -137,19 +137,19 @@ out_folder <- "Dataout"
       mutate(completeness = case_when(is_datim_site >  0 ~ has_hfr_reporting / is_datim_site),
              site_type = "All")
              
-      print(df_completeness, n = Inf)
+      # print(df_completeness, n = Inf)
     
   #mech x site completeness report for HV sites
     df_completeness_imp <- df_q1 %>% 
       filter_at(vars(hfr_results, mer_results, mer_targets), any_vars(.!=0)) %>% 
-      filter(impflag_targets == 1) %>% 
-      group_by(operatingunit, indicator) %>% 
+      mutate(site_type = case_when(impflag_targets == 1 ~ "High Volume (Target)",
+                                   impflag_targets == 0 ~ "Low Volume (Target)")) %>% 
+      group_by(operatingunit, indicator, site_type) %>% 
       summarise_at(vars(has_hfr_reporting, is_datim_site), sum, na.rm = TRUE) %>% 
       ungroup() %>% 
-      mutate(completeness = case_when(is_datim_site >  0 ~ has_hfr_reporting / is_datim_site),
-             site_type = "Important (Target-based)")
+      mutate(completeness = case_when(is_datim_site >  0 ~ has_hfr_reporting / is_datim_site))
              
-      print(df_completeness_imp, n = Inf)
+      # print(df_completeness_imp, n = Inf)
     
   #combine completeness for viz
       df_completeness_viz <- df_completeness %>% 
@@ -180,19 +180,19 @@ out_folder <- "Dataout"
         mutate(completeness = case_when(is_datim_site >  0 ~ has_hfr_reporting / is_datim_site),
                site_type = "All")
       
-      print(df_completeness_pds, n = Inf)
+      # print(df_completeness_pds, n = Inf)
       
     #mech x site completeness report for HV sites
       df_completeness_pds_imp <- df_pds %>% 
         filter_at(vars(hfr_results, mer_results, mer_targets), any_vars(.!=0)) %>% 
-        filter(impflag_targets == 1) %>% 
-        group_by(operatingunit, hfr_pd, indicator) %>% 
+        mutate(site_type = case_when(impflag_targets == 1 ~ "High Volume (Target)",
+                                     impflag_targets == 0 ~ "Low Volume (Target)")) %>% 
+        group_by(operatingunit, indicator, hfr_pd, site_type) %>% 
         summarise_at(vars(has_hfr_reporting, is_datim_site), sum, na.rm = TRUE) %>% 
         ungroup() %>% 
-        mutate(completeness = case_when(is_datim_site >  0 ~ has_hfr_reporting / is_datim_site),
-               site_type = "Important (Target-based)")
+        mutate(completeness = case_when(is_datim_site >  0 ~ has_hfr_reporting / is_datim_site))
       
-      print(df_completeness_imp, n = Inf)
+      # print(df_completeness_imp, n = Inf)
       
       #combine completeness for viz
       df_completeness_pds_viz <- df_completeness_pds %>% 
