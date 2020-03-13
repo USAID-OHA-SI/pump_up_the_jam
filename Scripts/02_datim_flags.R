@@ -45,7 +45,7 @@
   #remove files (just keep zipped folder)
     unlink(files)
   
-  X#aggregate to level of detail desired
+  #aggregate to level of detail desired
   #flag sites with results but no targets, flag number of mechs per site
   df_datim <- df_datim %>% 
     group_by(orgunituid, mech_code, fy, indicator, operatingunit) %>% 
