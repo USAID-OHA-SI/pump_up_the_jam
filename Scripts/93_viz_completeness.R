@@ -21,6 +21,9 @@ viz_folder <- "Images"
 
 ind_sel  <- c("HTS_TST", "TX_NEW", "TX_CURR")
 
+color_hv_sites <- viridis_pal()(1)
+color_all_sites <- "#D3D3D3"
+
 # IMPORT ------------------------------------------------------------------
 
 
@@ -44,25 +47,35 @@ ind_sel  <- c("HTS_TST", "TX_NEW", "TX_CURR")
                                      operatingunit == "Dominican Republic" ~ "DR",
                                      operatingunit == "Western Hemisphere Region" ~ "WH Region",
                                      TRUE ~ operatingunit))
+  
+  
+  df_completeness_pds_viz <- df_completeness_pds_viz %>% 
+    mutate(class = case_when(completeness < .6 ~ "low",
+                             completeness < .9 ~ "med",
+                             TRUE              ~ "okay"))
 
 # PLOT --------------------------------------------------------------------
   
 
   df_completeness_viz %>% 
-    filter(indicator %in% ind_sel) %>% 
+    filter(indicator %in% ind_sel,
+           site_type != "Low Volume (Target)") %>% 
     mutate(indicator = factor(indicator, ind_sel)) %>% 
     ggplot(aes(fct_reorder(operatingunit, is_datim_site, .fun = sum), completeness, group = operatingunit, color = site_type)) +
+    geom_hline(aes(yintercept = 0), color = "gray40") +
     geom_hline(aes(yintercept = 1), color = "gray40", linetype = "dashed") +
-    geom_path(size = .6, color = 'gray60') +
+    geom_path(size = .6, color = 'gray70') +
     geom_point(size = 4) +
     scale_y_continuous(labels = percent) +
-    scale_color_viridis_d(option = "C", end = .5) +
+    scale_color_manual(values = c(color_all_sites, color_hv_sites)) +
     coord_flip() +
     facet_grid(~ indicator) +
     labs(title = "FOCUSING ON IMPORTANT SITES PROVIDES BETTER REPORTING COMPLETESS",
          subtitle = "FY20Q1 Site x Mechanism HFR Reporting Completeness", 
          y = NULL, x = NULL, color = "Site Type",
-         caption = "Note: Completeness derived by comparing HFR reporting against sites with DATIM results/targets
+         caption = "Notes: 
+         (a) Completeness derived by comparing HFR reporting against sites with DATIM results/targets
+         (b) OUs sorted by the number of sites x mechanism pairs 
          Source: FY20Q1 MER + HFR") +
     theme_minimal() +
     theme(text = element_text(family = "Calibri Light"),
@@ -77,13 +90,15 @@ ind_sel  <- c("HTS_TST", "TX_NEW", "TX_CURR")
   
   
   df_completeness_pds_viz %>% 
-    filter(indicator %in% ind_sel) %>% 
+    filter(indicator %in% ind_sel,
+           site_type != "Low Volume (Target)") %>% 
     mutate(indicator = factor(indicator, ind_sel)) %>% 
-    ggplot(aes(hfr_pd, fct_reorder(operatingunit, is_datim_site, .fun = sum), fill = completeness)) +
+    ggplot(aes(hfr_pd, fct_reorder(operatingunit, is_datim_site, .fun = sum), fill = class, color = class)) +
     geom_tile(color = "white") +
-    geom_text(aes(label = percent(completeness)), size = 2.5, 
-              color = "#303030", family = "Calibri Light") +
-    scale_fill_viridis_c(option = "A", begin = 0.5, na.value = "#f1f1f1", direction = -1) +
+    geom_text(aes(label = percent(completeness)), 
+              size = 2.5, family = "Calibri Light") +
+    scale_color_manual(values = c("gray90", "gray30","gray30")) +
+    scale_fill_brewer(palette = "OrRd", direction = -1) +
     facet_grid(site_type ~ indicator, switch = "y") +
     labs(title = "FOCUSING ON IMPORTANT SITES PROVIDES BETTER REPORTING COMPLETESS",
          subtitle = "FY20Q1 Site x Mechanism HFR Reporting Completeness by Period", 
