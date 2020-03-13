@@ -3,7 +3,7 @@
 ## LICENSE:  MIT
 ## PURPOSE:  calculate completeness of reporting
 ## DATE:     2020-03-11
-## UPDATED:  
+## UPDATED:  2020-03-13
 
 
 # DEPENDENCIES ------------------------------------------------------------
@@ -68,7 +68,7 @@ out_folder <- "Dataout"
   
   #join FY20Q1 dataset & respread
     df_q1 <- bind_rows(df_q1_sum, df_q1_max)  %>% 
-      spread(type, value)
+      spread(type, value, fill = 0)   #treat 0's as NA -> convert all NAs to 0
   
     rm(df_q1_max, df_q1_sum)    
 
@@ -94,7 +94,7 @@ out_folder <- "Dataout"
     
     #join FY20Q1 dataset & respread
     df_pds <- bind_rows(df_pds_sum, df_pds_max)  %>% 
-      spread(type, value)
+      spread(type, value, fill = 0)   #treat 0's as NA -> convert all NAs to 0
     
     rm(df_pds_max, df_pds_sum)
 
@@ -118,10 +118,10 @@ out_folder <- "Dataout"
 
 # QUARTERLY COMPLETENESS --------------------------------------------------
 
-
+    
   #create flags for whether site reported HFR and if site exists in DATIM
     df_q1 <- df_q1 %>% 
-      mutate(has_hfr_reporting = !is.na(hfr_results),
+      mutate(has_hfr_reporting = hfr_results > 0,
              is_datim_site = mer_results > 0 | mer_targets > 0)
   
   #remove where HFR reporting against mech x site that does not have DATIM results/targets
@@ -130,7 +130,7 @@ out_folder <- "Dataout"
     
   #mech x site completeness report
     df_completeness <- df_q1 %>% 
-      filter(!(hfr_results == 0 & mer_results == 0)) %>% 
+      filter_at(vars(hfr_results, mer_results, mer_targets), any_vars(.!=0)) %>% 
       group_by(operatingunit, indicator) %>% 
       summarise_at(vars(has_hfr_reporting, is_datim_site), sum, na.rm = TRUE) %>% 
       ungroup() %>% 
@@ -141,8 +141,8 @@ out_folder <- "Dataout"
     
   #mech x site completeness report for HV sites
     df_completeness_imp <- df_q1 %>% 
-      filter(!(hfr_results == 0 & mer_results == 0),
-             impflag_targets == 1) %>% 
+      filter_at(vars(hfr_results, mer_results, mer_targets), any_vars(.!=0)) %>% 
+      filter(impflag_targets == 1) %>% 
       group_by(operatingunit, indicator) %>% 
       summarise_at(vars(has_hfr_reporting, is_datim_site), sum, na.rm = TRUE) %>% 
       ungroup() %>% 
@@ -160,7 +160,7 @@ out_folder <- "Dataout"
 
     #create flags for whether site reported HFR and if site exists in DATIM
       df_pds <- df_pds %>% 
-        mutate(has_hfr_reporting = !is.na(hfr_results),
+        mutate(has_hfr_reporting = hfr_results > 0 ,
                is_datim_site = mer_results > 0 | mer_targets > 0)
       
     #remove where HFR reporting against mech x site that does not have DATIM results/targets
@@ -173,7 +173,7 @@ out_folder <- "Dataout"
       
     #mech x site completeness report
       df_completeness_pds <- df_pds %>% 
-        filter(!(hfr_results == 0 & mer_results == 0)) %>% 
+        filter_at(vars(hfr_results, mer_results, mer_targets), any_vars(.!=0)) %>% 
         group_by(operatingunit, hfr_pd, indicator) %>% 
         summarise_at(vars(has_hfr_reporting, is_datim_site), sum, na.rm = TRUE) %>% 
         ungroup() %>% 
@@ -184,8 +184,8 @@ out_folder <- "Dataout"
       
     #mech x site completeness report for HV sites
       df_completeness_pds_imp <- df_pds %>% 
-        filter(!(hfr_results == 0 & mer_results == 0),
-               impflag_targets == 1) %>% 
+        filter_at(vars(hfr_results, mer_results, mer_targets), any_vars(.!=0)) %>% 
+        filter(impflag_targets == 1) %>% 
         group_by(operatingunit, hfr_pd, indicator) %>% 
         summarise_at(vars(has_hfr_reporting, is_datim_site), sum, na.rm = TRUE) %>% 
         ungroup() %>% 
