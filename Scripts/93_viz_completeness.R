@@ -17,6 +17,7 @@ library(extrafont)
 # GLOBAL VARIABLES --------------------------------------------------------
 
 out_folder <- "Dataout"
+viz_folder <- "Images"
 
 ind_sel  <- c("HTS_TST", "TX_NEW", "TX_CURR")
 
@@ -52,8 +53,8 @@ ind_sel  <- c("HTS_TST", "TX_NEW", "TX_CURR")
     mutate(indicator = factor(indicator, ind_sel)) %>% 
     ggplot(aes(fct_reorder(operatingunit, is_datim_site, .fun = sum), completeness, group = operatingunit, color = site_type)) +
     geom_hline(aes(yintercept = 1), color = "gray40", linetype = "dashed") +
-    geom_path(size = .9, color = 'gray60') +
-    geom_point(size = 7) +
+    geom_path(size = .6, color = 'gray60') +
+    geom_point(size = 4) +
     scale_y_continuous(labels = percent) +
     scale_color_viridis_d(option = "C", end = .5) +
     coord_flip() +
@@ -71,6 +72,8 @@ ind_sel  <- c("HTS_TST", "TX_NEW", "TX_CURR")
           legend.position = "bottom",
           plot.caption = element_text(color = "gray30"))
   
+  ggsave(file.path(viz_folder,"HFR_Completeness.png"), dpi = 300, 
+         width = 10, height = 5.625)
   
   
   df_completeness_pds_viz %>% 
@@ -78,20 +81,25 @@ ind_sel  <- c("HTS_TST", "TX_NEW", "TX_CURR")
     mutate(indicator = factor(indicator, ind_sel)) %>% 
     ggplot(aes(hfr_pd, fct_reorder(operatingunit, is_datim_site, .fun = sum), fill = completeness)) +
     geom_tile(color = "white") +
-    geom_text(aes(label = percent(completeness)), size = 3, 
+    geom_text(aes(label = percent(completeness)), size = 2.5, 
               color = "#303030", family = "Calibri Light") +
     scale_fill_viridis_c(option = "A", begin = 0.5, na.value = "#f1f1f1", direction = -1) +
     facet_grid(site_type ~ indicator, switch = "y") +
     labs(title = "FOCUSING ON IMPORTANT SITES PROVIDES BETTER REPORTING COMPLETESS",
-         subtitle = "FY20Q1 Site x Mechanism HFR Reporting Completeness", 
+         subtitle = "FY20Q1 Site x Mechanism HFR Reporting Completeness by Period", 
          y = NULL, x = NULL, color = "Site Type",
          caption = "Note: Completeness derived by comparing HFR reporting against sites with DATIM results/targets
          Source: FY20Q1 MER + HFR") +
     theme_minimal() +
     theme(text = element_text(family = "Calibri Light"),
+          axis.text.y = element_text(size = 7),
           plot.title = element_text(family = "Calibri", face = "bold"),
           strip.text = element_text(family = "Calibri", face = "bold"),
           strip.placement = "outside",
           panel.grid = element_blank(),
           legend.position = "none",
           plot.caption = element_text(color = "gray30"))
+
+  ggsave(file.path(viz_folder,"HFR_Completeness_Pd.png"), dpi = 300, 
+         width = 10, height = 5.625)
+  
