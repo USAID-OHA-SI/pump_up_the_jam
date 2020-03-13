@@ -21,8 +21,8 @@ out_folder <- "Dataout"
 # IMPORT ------------------------------------------------------------------
 
   #load joint HFR + DATIM dataset for FY20Q1 (created in Scripts/assemble_data.R)
-    df_joint <- vroom(file.path(out_folder, "HFR_DATIM_FY20Q1_20200311.csv"),
-                      col_types = c(.default = "c"))  
+    df_joint <- list.files(out_folder, "HFR_DATIM_FY20Q1_[[:digit:]]+\\.csv", full.names = TRUE) %>% 
+      vroom(col_types = c(.default = "c"))  
   
     
 # MUNGE -------------------------------------------------------------------
@@ -71,7 +71,8 @@ out_folder <- "Dataout"
 # MERGE DATIM FLAGS -------------------------------------------------------
 
   #import volume weighting
-    df_datim_wgts <- vroom(file.path(out_folder, "DATIM_FLAGS_2020031220200312.csv")) %>% 
+    df_datim_wgts <- list.files(out_folder, "DATIM_FLAGS_[[:digit:]]+\\.csv", full.names = TRUE) %>% 
+      vroom() %>% 
       mutate_at(vars(mech_code, fy), as.character)
     
   #drop vars before merging
