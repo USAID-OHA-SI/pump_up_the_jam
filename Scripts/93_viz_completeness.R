@@ -177,7 +177,7 @@ color_all_sites <- "#D3D3D3"
     ) %>%
     ggplot(aes(hfr_pd, completeness, group = grp, color = completeness)) +
     geom_hline(aes(yintercept = 0), color = "gray30") +
-    geom_smooth(color = color_ref, linetype = "dashed") +
+    geom_smooth(aes(weight = mer_targets), color = color_ref, linetype = "dashed") +
     geom_jitter(size = 2, width = .2) +
     scale_y_continuous(labels = percent) +
     scale_colour_viridis_c(option = "A", direction = -1, labels = percent, end = 0.9, alpha = 0.85) +
@@ -188,7 +188,8 @@ color_all_sites <- "#D3D3D3"
          caption = "Notes: 
          (a) Completeness derived by comparing HFR reporting against sites with DATIM results/targets
          (b) Each dot represents an OU's Site x Mechanism completeness for each period
-         Source: FY20Q1 MER + HFR",
+         Source: FY20Q1 MER + HFR
+         (c) MER targets included as weighting in polynomial fit line",
          color = "Reporting completeness (100% = all sites reporting) ") +
     theme_minimal() + 
     #coord_fixed(ratio = .007) +
