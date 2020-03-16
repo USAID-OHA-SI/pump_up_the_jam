@@ -3,7 +3,7 @@
 ## LICENSE:  MIT
 ## PURPOSE:  calculate completeness of reporting
 ## DATE:     2020-03-11
-## UPDATED:  2020-03-13
+## UPDATED:  2020-03-16
 
 
 # DEPENDENCIES ------------------------------------------------------------
@@ -175,7 +175,7 @@ out_folder <- "Dataout"
       df_completeness_pds <- df_pds %>% 
         filter_at(vars(hfr_results, mer_results, mer_targets), any_vars(.!=0)) %>% 
         group_by(operatingunit, hfr_pd, indicator) %>% 
-        summarise_at(vars(has_hfr_reporting, is_datim_site), sum, na.rm = TRUE) %>% 
+        summarise_at(vars(has_hfr_reporting, is_datim_site, mer_targets), sum, na.rm = TRUE) %>% 
         ungroup() %>% 
         mutate(completeness = case_when(is_datim_site >  0 ~ has_hfr_reporting / is_datim_site),
                site_type = "All")
@@ -188,7 +188,7 @@ out_folder <- "Dataout"
         mutate(site_type = case_when(impflag_targets == 1 ~ "High Volume (Target)",
                                      impflag_targets == 0 ~ "Low Volume (Target)")) %>% 
         group_by(operatingunit, indicator, hfr_pd, site_type) %>% 
-        summarise_at(vars(has_hfr_reporting, is_datim_site), sum, na.rm = TRUE) %>% 
+        summarise_at(vars(has_hfr_reporting, is_datim_site, mer_targets), sum, na.rm = TRUE) %>% 
         ungroup() %>% 
         mutate(completeness = case_when(is_datim_site >  0 ~ has_hfr_reporting / is_datim_site))
       
