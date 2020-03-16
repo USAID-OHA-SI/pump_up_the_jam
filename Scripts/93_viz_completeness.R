@@ -99,7 +99,7 @@ color_all_sites <- "#D3D3D3"
     ggplot(aes(ou_sort, completeness, group = operatingunit, color = site_type)) +
     geom_hline(aes(yintercept = 0), color = "gray40") +
     geom_hline(aes(yintercept = 1), color = "gray40") + #, linetype = "dashed"
-    geom_hline(aes(yintercept = completeness_global), color = color_ref, linetype = "dashed", size = .9) +
+    geom_hline(aes(yintercept = completeness_global), color = color_ref, linetype = "dashed", size = .5) +
     geom_path(size = .6, color = 'gray70') +
     geom_point(size = 4) +
     scale_y_continuous(labels = percent) +
@@ -111,15 +111,14 @@ color_all_sites <- "#D3D3D3"
          y = NULL, x = NULL, color = "Site Type",
          caption = "Notes:
          (a) Completeness derived by comparing HFR reporting against sites with DATIM results/targets
-         (b) OUs sorted by HTS_TST completeness
-         (c) The green dashed line denoted global completeness of reporting
+         (b) The green dashed line denoted global completeness of reporting
          Source: FY20Q1 MER + HFR") +
     theme_minimal() +
     theme(strip.text = element_text(hjust = 0),
           legend.position = "top",
           legend.justification = c(0, 0),
           plot.title = element_markdown(hjust = 0, size = 14, face = "bold", color = "gray30"),
-          plot.caption = element_text(color = "gray30"))
+          plot.caption = element_text(color = "gray30", size = 8))
   
   ggsave(file.path(viz_folder,"HFR_Completeness.png"), dpi = 300, 
          width = 10, height = 5.625)
