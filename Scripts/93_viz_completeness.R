@@ -124,31 +124,35 @@ color_all_sites <- "#D3D3D3"
          width = 10, height = 5.625)
   
   
-  df_completeness_pds_viz %>% 
+  df_completeness_pds_viz %>%
     filter(indicator %in% ind_sel,
-           site_type != "Low Volume (Target)") %>% 
-    mutate(indicator = factor(indicator, ind_sel)) %>% 
-    ggplot(aes(hfr_pd, fct_reorder(operatingunit, is_datim_site, .fun = sum), fill = class, color = class)) +
-    geom_tile(color = "white") +
-    geom_text(aes(label = percent(completeness)), 
-              size = 2.5, family = "Calibri Light") +
-    scale_color_manual(values = c("gray90", "gray30","gray30")) +
-    scale_fill_brewer(palette = "OrRd", direction = -1) +
-    facet_grid(site_type ~ indicator, switch = "y") +
-    labs(title = "FOCUSING ON IMPORTANT SITES PROVIDES BETTER REPORTING COMPLETESS",
-         subtitle = "FY20Q1 Site x Mechanism HFR Reporting Completeness by Period", 
+           site_type != "Low Volume (Target)") %>%
+    group_by(operatingunit) %>%
+    mutate(sort_max = ifelse(site_type =="High Volume (Target)" & indicator == "HTS_TST", completeness, NA_real_)) %>%
+    fill(sort_max, .direction = "updown") %>%
+    ungroup() %>%
+    mutate(indicator = factor(indicator, ind_sel),
+           ou_sort = fct_reorder(operatingunit, sort_max),
+           rank = percent_rank(completeness),
+    ) %>%
+    ggplot(aes(hfr_pd, ou_sort, fill = completeness)) +
+    geom_tile(color = "white", size = 0.25) +
+    geom_text(aes(label = ifelse(rank < 0.50, percent(completeness), NA_real_)),
+              size = 2.5, colour = "gray30", na.rm = TRUE) +
+    scale_fill_viridis_c(option = "A", direction = -1, labels = percent, end = 0.9, alpha = 0.85) +
+    facet_wrap(rev(site_type) ~ indicator, nrow = 1) +
+    labs(title = "FOCUSING ON IMPOTANT SITES PROVIDES BETTER REPORTING COMPLETENESS",
+         subtitle = "FY20Q1 Site x Mechanism HFR Reporting Completeness by Period",
          y = NULL, x = NULL, color = "Site Type",
          caption = "Note: Completeness derived by comparing HFR reporting against sites with DATIM results/targets
-         Source: FY20Q1 MER + HFR") +
-    theme_minimal() +
-    theme(text = element_text(family = "Calibri Light"),
-          axis.text.y = element_text(size = 7),
-          plot.title = element_text(family = "Calibri", face = "bold"),
-          strip.text = element_text(family = "Calibri", face = "bold"),
-          strip.placement = "outside",
+         Source: FY20Q1 MER + HFR",
+         fill = "Reporting completeness (100% = all sites reporting) ") +
+    theme_minimal() + coord_fixed(ratio = .007) +
+    theme(legend.position = "top",
+          legend.justification = c(0, 0),
           panel.grid = element_blank(),
-          legend.position = "none",
-          plot.caption = element_text(color = "gray30"))
+          axis.text.x = element_text(size = 7),
+          strip.text = element_text(hjust = 0))
 
   ggsave(file.path(viz_folder,"HFR_Completeness_Pd.png"), dpi = 300, 
          width = 10, height = 5.625)
