@@ -70,11 +70,46 @@ out_folder <- "Dataout"
     mutate(val = as.numeric(val))
 
   rm(hfr1, hfr2, hfr3, hfr4) 
+
+# compare late fixes
   
-# compare 'processed' folder with 'fixes/late submissions'
-  # explore comparing the pd* lists with the late/fixes
+  # where are the fixes
+  late_data <- "Data/late"
+
+  late_files <- list.files(late_data, "HFR", full.names = TRUE)
+
+  # create a 
+  late_pds <- late_files %>%
+    dplyr::as_tibble() %>% 
+    mutate(pd = str_sub(value, 20,21),
+           mech_number = str_sub(value, 27,31))
+  
+  late_periods <- late_pds %>% 
+    pull(pd)
+  
+  late_mechs <- late_pds %>% 
+    pull(mech_number)
+  
+  # filter hfr list for those pd+mech_code where there is a fix
+  
+  df_hfr <- df_hfr %>% 
+    filter(!hfr_pd %in% late_periods & !mech_code %in% late_mechs)
+  
+  # read in fix file
+  df_fix <- map_dfr(.x = late_files,
+                    .f = ~readr::read_csv(.x, col_types = c(.default = "c"))) %>% 
+    mutate(val = as.numeric(val))
+  
+  # append fix to master
+  
+  df_master <- bind_rows(df_fix, df_hfr)
   
   
+  # write file
+  
+  filename <- paste0("hfr_pd1_pd4_clean_", format(Sys.Date(), "%Y%m%d"), ".csv")
+  write_csv(df_hfr, file.path(out_folder, filename))
+
   
   
   
