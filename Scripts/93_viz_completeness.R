@@ -155,7 +155,7 @@ color_all_sites <- "#D3D3D3"
           strip.text = element_text(hjust = 0))
 
   ggsave(file.path(viz_folder,"HFR_Completeness_Pd.png"), dpi = 300, 
-         width = 10, height = 5.625)
+         width = 18, height = 10)
   
   
   
