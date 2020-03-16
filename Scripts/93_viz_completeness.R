@@ -157,3 +157,49 @@ color_all_sites <- "#D3D3D3"
   ggsave(file.path(viz_folder,"HFR_Completeness_Pd.png"), dpi = 300, 
          width = 10, height = 5.625)
   
+  
+  
+  
+  
+  
+  df_completeness_pds_viz %>%
+    filter(indicator %in% ind_sel,
+           site_type != "Low Volume (Target)") %>%
+    group_by(operatingunit) %>%
+    mutate(sort_max = ifelse(site_type =="High Volume (Target)" & indicator == "HTS_TST", completeness, NA_real_)) %>%
+    fill(sort_max, .direction = "updown") %>%
+    ungroup() %>%
+    mutate(indicator = factor(indicator, ind_sel),
+           ou_sort = fct_reorder(operatingunit, sort_max),
+           rank = percent_rank(completeness),
+           hfr_pd = as.character(hfr_pd),
+           grp = paste(site_type, indicator)
+    ) %>%
+    ggplot(aes(hfr_pd, completeness, group = grp, color = completeness)) +
+    geom_hline(aes(yintercept = 0), color = "gray30") +
+    geom_smooth(color = color_ref, linetype = "dashed") +
+    geom_jitter(size = 2, width = .2) +
+    scale_y_continuous(labels = percent) +
+    scale_colour_viridis_c(option = "A", direction = -1, labels = percent, end = 0.9, alpha = 0.85) +
+    facet_grid(rev(site_type) ~ indicator, switch = "y") +
+    labs(title = "PERIOD COMPLETENESS POOR ACROSS ALL SITE TYPES",
+         subtitle = "FY20Q1 OU HFR Reporting Completeness by Period",
+         y = NULL, x = NULL, 
+         caption = "Notes: 
+         (a) Completeness derived by comparing HFR reporting against sites with DATIM results/targets
+         (b) Each dot represents an OU's Site x Mechanism completeness for each period
+         Source: FY20Q1 MER + HFR",
+         color = "Reporting completeness (100% = all sites reporting) ") +
+    theme_minimal() + 
+    #coord_fixed(ratio = .007) +
+    theme(legend.position = "top",
+          legend.justification = c(0, 0),
+          axis.text.x = element_text(size = 7),
+          strip.text = element_text(face = "bold"),
+          strip.placement = "outside")
+  
+  
+  ggsave(file.path(viz_folder,"HFR_Completeness_Pd_Trends.png"), dpi = 300, 
+         width = 10, height = 5.625)
+  
+  
