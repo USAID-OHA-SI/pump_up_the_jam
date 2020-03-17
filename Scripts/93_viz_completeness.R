@@ -262,8 +262,8 @@ color_all_sites <- "#D3D3D3"
         caption = "Notes:
          (a) Completeness derived by comparing HFR reporting against sites with DATIM results/targets
          (b) Each dot represents an OU's Site x Mechanism completeness for each period
-         Source: FY20Q1 MER + HFR
-         (c) MER targets included as weighting in polynomial fit line",
+         (c) MER targets included as weighting in polynomial fit line
+         Source: FY20Q1 MER + HFR",
         color = "Reporting completeness (100% = all sites reporting) ") +
       theme_minimal() + 
       theme(legend.position = "none",
