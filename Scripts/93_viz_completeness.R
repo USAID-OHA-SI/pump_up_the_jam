@@ -14,6 +14,8 @@ library(vroom)
 library(scales)
 library(extrafont)
 library(ggtext)
+library(patchwork) # combining plots
+library(ggpubr) # for ggarrange
 
 # GLOBAL VARIABLES --------------------------------------------------------
 
@@ -24,7 +26,7 @@ ind_sel  <- c("HTS_TST", "TX_NEW", "TX_CURR")
 
 pal <- viridis_pal()(6) #%>% show_col()
 color_hv_sites <- pal[1]
-color_ref <- pal[4]
+color_ref <- "#C8C8C8"
 color_all_sites <- "#D3D3D3"
 
 # IMPORT ------------------------------------------------------------------
@@ -34,6 +36,9 @@ color_all_sites <- "#D3D3D3"
       vroom()
   
     df_completeness_pds_viz <- list.files(out_folder, "HFR_Completeness_Pds_[[:digit:]]+\\.csv", full.names = TRUE) %>% 
+      vroom()
+    
+    df_completeness_pds_viz <- list.files(out_folder, "HFR_Completeness_Pds_20200316.csv", full.names = TRUE) %>% 
       vroom()
 
 # MUNGE -------------------------------------------------------------------
@@ -79,6 +84,37 @@ color_all_sites <- "#D3D3D3"
       mutate(class = case_when(completeness < .6 ~ "low",
                                completeness < .9 ~ "med",
                                TRUE              ~ "okay"))
+    
+    
+    # Run lowess regression on each indicator + site type with time as the xvar.
+    # Saving results so we can make an arrow at the end of the fitted line with geom_segement
+    # NOTE: Didn't work out as expect, simply adding a circle at the end of fitted line
+    model_data <- df_completeness_pds_viz %>% 
+      mutate(timevar = as.numeric(hfr_pd))
+    
+    models <- model_data  %>%
+      filter(completeness > 0) %>% 
+      tidyr::nest(-site_type, - indicator) %>%
+      mutate(
+        fit = purrr:: map(data, ~ loess(completeness ~ timevar, weights = mer_targets, span = 0.75, data = .)),
+        # Extract out fitted models
+        fitted = purrr::map(fit, `[[`, "fitted")
+      )
+    
+    df_results <- models %>%
+      dplyr::select(-fit) %>%
+      tidyr::unnest(cols = c(data, fitted))
+    
+    df_results_collapse <- 
+      df_results %>% 
+      filter(indicator %in% ind_sel,
+        site_type != "Low Volume (Target)") %>% 
+      group_by(indicator, site_type, hfr_pd) %>% 
+      summarise(arrows = mean(fitted)) %>% 
+      filter(hfr_pd == max(hfr_pd)) %>% 
+      mutate(grp = paste(site_type, indicator),
+        hfr_pd = as.character(hfr_pd)) %>% 
+      ungroup()
 
 # PLOT --------------------------------------------------------------------
   
@@ -119,12 +155,13 @@ color_all_sites <- "#D3D3D3"
           legend.justification = c(0, 0),
           plot.title = element_markdown(hjust = 0, size = 14, face = "bold", color = "gray30"),
           plot.caption = element_text(color = "gray30", size = 8))
-  
+
   ggsave(file.path(viz_folder,"HFR_Completeness.png"), dpi = 300, 
-         width = 10, height = 5.625)
+         width = 10, height = 5.625,
+    scale = 1.25)
   
   
-  df_completeness_pds_viz %>%
+  df_hmap_top <- df_completeness_pds_viz %>%
     filter(indicator %in% ind_sel,
            site_type != "Low Volume (Target)") %>%
     group_by(operatingunit) %>%
@@ -134,7 +171,10 @@ color_all_sites <- "#D3D3D3"
     mutate(indicator = factor(indicator, ind_sel),
            ou_sort = fct_reorder(operatingunit, sort_max),
            rank = percent_rank(completeness),
-    ) %>%
+    )
+  
+  
+  (df_hmap_top %>% 
     ggplot(aes(hfr_pd, ou_sort, fill = completeness)) +
     geom_tile(color = "white", size = 0.25) +
     geom_text(aes(label = ifelse(rank < 0.50, percent(completeness), NA_real_)),
@@ -144,8 +184,8 @@ color_all_sites <- "#D3D3D3"
     labs(title = "FOCUSING ON IMPOTANT SITES PROVIDES BETTER REPORTING COMPLETENESS",
          subtitle = "FY20Q1 Site x Mechanism HFR Reporting Completeness by Period",
          y = NULL, x = NULL, color = "Site Type",
-         caption = "Note: Completeness derived by comparing HFR reporting against sites with DATIM results/targets
-         Source: FY20Q1 MER + HFR",
+         #caption = "Note: Completeness derived by comparing HFR reporting against sites with DATIM results/targets
+         #Source: FY20Q1 MER + HFR",
          fill = "Reporting completeness (100% = all sites reporting) ") +
     theme_minimal() + coord_fixed(ratio = .007) +
     theme(legend.position = "top",
@@ -153,18 +193,17 @@ color_all_sites <- "#D3D3D3"
           panel.grid = element_blank(),
           axis.text.x = element_text(size = 7),
           strip.text = element_text(hjust = 0))
+  )
 
   ggsave(file.path(viz_folder,"HFR_Completeness_Pd.png"), dpi = 300, 
          width = 18, height = 10)
   
+
   
   
-  
-  
-  
-  df_completeness_pds_viz %>%
+  df_hmap_bottom <- df_results %>%
     filter(indicator %in% ind_sel,
-           site_type != "Low Volume (Target)") %>%
+           site_type != "Low Volume (Target)") %>% 
     group_by(operatingunit) %>%
     mutate(sort_max = ifelse(site_type =="High Volume (Target)" & indicator == "HTS_TST", completeness, NA_real_)) %>%
     fill(sort_max, .direction = "updown") %>%
@@ -174,33 +213,36 @@ color_all_sites <- "#D3D3D3"
            rank = percent_rank(completeness),
            hfr_pd = as.character(hfr_pd),
            grp = paste(site_type, indicator)
-    ) %>%
-    ggplot(aes(hfr_pd, completeness, group = grp, color = completeness)) +
+    ) 
+  
+ (hmap_bottom <- 
+   df_hmap_bottom %>% 
+    ggplot(aes(hfr_pd, completeness, group = grp)) +
     geom_hline(aes(yintercept = 0), color = "gray30") +
-    geom_smooth(aes(weight = mer_targets), color = color_ref, linetype = "dashed") +
-    geom_jitter(size = 2, width = .2) +
+    geom_jitter(size = 2, width = .2, alpha = 0.60, colour = "#D0D0D0") +
+    geom_smooth(aes(weight = mer_targets), se = FALSE, color = "#303030") +
+    geom_point(data = df_results_collapse,
+     aes(x = hfr_pd, y = arrows, fill = arrows), shape = 21, size = 2.5) +
     scale_y_continuous(labels = percent) +
-    scale_colour_viridis_c(option = "A", direction = -1, labels = percent, end = 0.9, alpha = 0.85) +
-    facet_grid(rev(site_type) ~ indicator, switch = "y") +
-    labs(title = "PERIOD COMPLETENESS POOR ACROSS ALL SITE TYPES",
-         subtitle = "FY20Q1 OU HFR Reporting Completeness by Period",
-         y = NULL, x = NULL, 
-         caption = "Notes: 
+    scale_fill_viridis_c(option = "A", direction = -1, labels = percent, end = 0.9) +
+    facet_wrap(site_type ~ indicator, nrow = 1) +
+    #facet_grid(rev(site_type) ~ indicator, switch = "y") +
+     labs(y = NULL, x = NULL,
+         caption = "Notes:
          (a) Completeness derived by comparing HFR reporting against sites with DATIM results/targets
          (b) Each dot represents an OU's Site x Mechanism completeness for each period
          Source: FY20Q1 MER + HFR
          (c) MER targets included as weighting in polynomial fit line",
          color = "Reporting completeness (100% = all sites reporting) ") +
     theme_minimal() + 
-    #coord_fixed(ratio = .007) +
-    theme(legend.position = "top",
+    theme(legend.position = "none",
           legend.justification = c(0, 0),
           axis.text.x = element_text(size = 7),
-          strip.text = element_text(face = "bold"),
+          strip.text = element_text(hjust = 0),
           strip.placement = "outside")
-  
+   )
   
   ggsave(file.path(viz_folder,"HFR_Completeness_Pd_Trends.png"), dpi = 300, 
-         width = 10, height = 5.625)
-  
+         width = 18, height = 2, scale = 1.25)
+
   
