@@ -3,7 +3,7 @@
 ## LICENSE:  download pds1-4 hfr processed data, clean for current pd, stitch
 ## PURPOSE:  structure project folders
 ## DATE:     2020-03-13
-## UPDATED: 
+## UPDATED:  To do: clean up and functionalize
 
 # DEPENDENCIES ------------------------------------------------------------
 
@@ -23,6 +23,8 @@ date_pd1 <- c("2019-09-30", "2019-10-07", "2019-10-14", "2019-10-21")
 out_folder <- "Dataout"
 
 # check pds ---------------------------------------------------------------
+
+# create date / pd lists
 
 # pd1
 
@@ -69,7 +71,7 @@ out_folder <- "Dataout"
   df_hfr <- bind_rows(hfr1, hfr2, hfr3, hfr4) %>% 
     mutate(val = as.numeric(val))
 
-  rm(hfr1, hfr2, hfr3, hfr4) 
+  rm(hfr1, hfr2, hfr3, hfr4, pd1, pd2, pd3, pd4) 
 
 # compare late fixes
   
@@ -78,36 +80,63 @@ out_folder <- "Dataout"
 
   late_files <- list.files(late_data, "HFR", full.names = TRUE)
 
-  # create a 
-  late_pds <- late_files %>%
-    dplyr::as_tibble() %>% 
-    mutate(pd = str_sub(value, 20,21),
-           mech_number = str_sub(value, 27,31))
+ # function to create fixed file with only appropriate pds
   
-  late_periods <- late_pds %>% 
-    pull(pd)
+  fixie <- function(file) {
+    
+    #1 get mech names
+    
+      mech <- file %>% 
+        basename() %>% 
+        str_extract("[:digit:]{5,6}")
+      
+      #2 get intended pd #
+      
+      pd <- file %>% 
+        basename() %>% 
+        str_extract("(?<=\\.)[:digit:]{2}") %>% 
+        str_remove("^0")
+      
+      # read in and filter for only data from submitted pd
+      
+      df <- readr::read_csv(file, col_types = c(.default = "c")) %>% 
+      filter(mech_code %in% mech & hfr_pd %in% pd) %>% 
+        mutate(val = as.numeric(val))
+      
+      return(df)
+    
+  }
   
-  late_mechs <- late_pds %>% 
-    pull(mech_number)
-  
-  # filter hfr list for those pd+mech_code where there is a fix
-  
-  df_hfr <- df_hfr %>% 
-    filter(!hfr_pd %in% late_periods & !mech_code %in% late_mechs)
   
   # read in fix file
   df_fix <- map_dfr(.x = late_files,
-                    .f = ~readr::read_csv(.x, col_types = c(.default = "c"))) %>% 
-    mutate(val = as.numeric(val))
+                    .f = ~fixie(.x)) 
+    
+  # filter master where there are files from fixed
   
-  # append fix to master
+  #late mechs
+  mech <- late_files %>% 
+    basename() %>% 
+    str_extract("[:digit:]{5,6}")
   
-  df_master <- bind_rows(df_fix, df_hfr)
+  pd <- late_files %>% 
+    basename() %>% 
+    str_extract("(?<=\\.)[:digit:]{2}") %>% 
+    str_remove("^0")
+  
+  
+  # remove from master mech/pd combos that are present in the fixes
+  df_hfr_sub <- df_hfr %>% 
+    filter(!(hfr_pd %in% pd & mech_code %in% mech))
+ 
+    ###
+  
+  df_master <- bind_rows(df_fix, df_hfr_sub)
   
   
   # write file
   
-  filename <- paste0("hfr_pd1_pd4_clean_", format(Sys.Date(), "%Y%m%d"), ".csv")
+  filename <- paste0("hfr_pd1_pd4_clean_fixed", format(Sys.Date(), "%Y%m%d"), ".csv")
   write_csv(df_hfr, file.path(out_folder, filename))
 
   
