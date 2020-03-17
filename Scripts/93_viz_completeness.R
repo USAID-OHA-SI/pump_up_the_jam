@@ -76,12 +76,6 @@ color_all_sites <- "#D3D3D3"
                                        operatingunit == "Western Hemisphere Region" ~ "WH Region",
                                        TRUE ~ operatingunit))
     
-  #classes for completeness
-    df_completeness_pds_viz <- df_completeness_pds_viz %>% 
-      mutate(class = case_when(completeness < .6 ~ "low",
-                               completeness < .9 ~ "med",
-                               TRUE              ~ "okay"))
-    
     
   # Run lowess regression on each indicator + site type with time as the xvar.
   # Saving results so we can make an arrow at the end of the fitted line with geom_segement
