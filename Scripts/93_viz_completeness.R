@@ -83,10 +83,30 @@ color_all_sites <- "#D3D3D3"
                                TRUE              ~ "okay"))
     
     
-    # Run lowess regression on each indicator + site type with time as the xvar.
-    # Saving results so we can make an arrow at the end of the fitted line with geom_segement
-    # NOTE: Didn't work out as expect, simply adding a circle at the end of fitted line
-    # Functions to allow for filtering on the data frames going into the flow process
+  # Run lowess regression on each indicator + site type with time as the xvar.
+  # Saving results so we can make an arrow at the end of the fitted line with geom_segement
+  # NOTE: Didn't work out as expect, simply adding a circle at the end of fitted line
+  # Functions to allow for filtering on the data frames going into the flow process
+    
+    heatmap_prep <- function(df) {
+      df <-
+        df_completeness_pds_viz %>%
+        filter(
+          indicator %in% ind_sel,
+          site_type != "Low Volume (Target)"
+        ) %>%
+        group_by(operatingunit) %>%
+        mutate(sort_max = ifelse(site_type == "High Volume (Target)" & indicator == "HTS_TST", completeness, NA_real_)) %>%
+        fill(sort_max, .direction = "updown") %>%
+        ungroup() %>%
+        mutate(
+          indicator = factor(indicator, ind_sel),
+          ou_sort = fct_reorder(operatingunit, sort_max),
+          rank = percent_rank(completeness)
+        )
+      
+      return(df)
+    }
     
     prep_fitline <- function(df) {
       
@@ -127,27 +147,29 @@ color_all_sites <- "#D3D3D3"
     
     sparkline_prep <- function(df) {
     
-    df_hmap_bottom <- df %>%
-      filter(indicator %in% ind_sel,
-        site_type != "Low Volume (Target)") %>% 
-      group_by(operatingunit) %>%
-      mutate(sort_max = ifelse(site_type =="High Volume (Target)" & indicator == "HTS_TST", completeness, NA_real_)) %>%
-      fill(sort_max, .direction = "updown") %>%
-      ungroup() %>%
-      mutate(indicator = factor(indicator, ind_sel),
-        ou_sort = fct_reorder(operatingunit, sort_max),
-        rank = percent_rank(completeness),
-        hfr_pd = as.character(hfr_pd),
-        grp = paste(site_type, indicator)
+      df_hmap_bottom <- df %>%
+        filter(indicator %in% ind_sel,
+          site_type != "Low Volume (Target)") %>% 
+        group_by(operatingunit) %>%
+        mutate(sort_max = ifelse(site_type =="High Volume (Target)" & indicator == "HTS_TST", completeness, NA_real_)) %>%
+        fill(sort_max, .direction = "updown") %>%
+        ungroup() %>%
+        mutate(indicator = factor(indicator, ind_sel),
+          ou_sort = fct_reorder(operatingunit, sort_max),
+          rank = percent_rank(completeness),
+          hfr_pd = as.character(hfr_pd),
+          grp = paste(site_type, indicator)
       ) 
   }
    
-    # Prep data frames needed for sparklines; Collapse function called within ggplot function 
+  # Prep data frames needed for sparklines; Collapse function called within ggplot function 
+    df_heatmap <- heatmap_prep(df_completeness_pds_viz)
+    
     df_results_nonzero_sparkline <- prep_fitline(df_completeness_pds_viz %>% filter(completeness > 0)) %>%
       sparkline_prep()
 
-   df_results_sparkline <- prep_fitline(df_completeness_pds_viz) %>% 
-     sparkline_prep()
+    df_results_sparkline <- prep_fitline(df_completeness_pds_viz) %>% 
+      sparkline_prep()
 
      
   
@@ -193,24 +215,13 @@ color_all_sites <- "#D3D3D3"
           plot.caption = element_text(color = "gray30", size = 8))
 
   ggsave(file.path(viz_folder,"HFR_Completeness.png"), dpi = 300, 
-         width = 10, height = 5.625,
-    scale = 1.25)
+         width = 10, height = 5.625, scale = 1.25)
   
   
-  df_hmap_top <- df_completeness_pds_viz %>%
-    filter(indicator %in% ind_sel,
-           site_type != "Low Volume (Target)") %>%
-    group_by(operatingunit) %>%
-    mutate(sort_max = ifelse(site_type =="High Volume (Target)" & indicator == "HTS_TST", completeness, NA_real_)) %>%
-    fill(sort_max, .direction = "updown") %>%
-    ungroup() %>%
-    mutate(indicator = factor(indicator, ind_sel),
-           ou_sort = fct_reorder(operatingunit, sort_max),
-           rank = percent_rank(completeness),
-    )
+
   
-  
-  df_hmap_top %>% 
+  # Heatmap of completeness with fixed coordinates to get squares   
+  df_heatmap %>% 
     ggplot(aes(hfr_pd, ou_sort, fill = completeness)) +
     geom_tile(color = "white", size = 0.25) +
     geom_text(aes(label = ifelse(rank < 0.50, percent(completeness), NA_real_)),
@@ -220,8 +231,8 @@ color_all_sites <- "#D3D3D3"
     labs(title = "FOCUSING ON IMPOTANT SITES PROVIDES BETTER REPORTING COMPLETENESS",
          subtitle = "FY20Q1 Site x Mechanism HFR Reporting Completeness by Period",
          y = NULL, x = NULL, color = "Site Type",
-         #caption = "Note: Completeness derived by comparing HFR reporting against sites with DATIM results/targets
-         #Source: FY20Q1 MER + HFR",
+         caption = "Note: Completeness derived by comparing HFR reporting against sites with DATIM results/targets
+         Source: FY20Q1 MER + HFR",
          fill = "Reporting completeness (100% = all sites reporting) ") +
     theme_minimal() + 
       coord_fixed(ratio = .007) +
@@ -233,14 +244,12 @@ color_all_sites <- "#D3D3D3"
 
   ggsave(file.path(viz_folder,"HFR_Completeness_Pd.png"), dpi = 300, 
          width = 18, height = 10)
-  
 
   
-  
-# Need two plots here, one w/ filtering out 0s one without
+  # Need two plots here, one w/ filtering out 0s one without
   # Functionalize plot
   
-  sparkline_plot <- function(df) {
+    sparkline_plot <- function(df) {
     # df = data frame to plot the sparkline
     # df_dot - data frame used to create the dot at end
     
@@ -270,12 +279,25 @@ color_all_sites <- "#D3D3D3"
         strip.placement = "outside")
   }
   
-  # Return the to different plots
-  sparkline_plot(df_results_nonzero_sparkline)
-  sparkline_plot(df_results_sparkline)
-   
+  # Return the two different plots
+  spk_plot_nonzero <- sparkline_plot(df_results_nonzero_sparkline) + 
+    labs(title = "FOCUSING ON IMPORTANT SITES PROVIDES BETTER REPORTING COMPLETENESS",
+      subtitle = "FY20Q1 Site x Mechanism HFR Reporting Completeness by Period")
   
-  ggsave(file.path(viz_folder,"HFR_Completeness_Pd_Trends.png"), dpi = 300, 
-         width = 18, height = 5, scale = 1.25)
+  ggsave(file.path(viz_folder,"HFR_Completeness_Pd_Trends_nonzero.png"), 
+    plot = spk_plot_nonzero,
+    dpi = 300, 
+    width = 10, height = 5.625, scale = 1.25)
+  
+  spk_plot_all <- sparkline_plot(df_results_sparkline) + 
+    labs(title = "FOCUSING ON ALL SITES PROVIDES INFERIOR REPORTING COMPLETENESS",
+      subtitle = "FY20Q1 Site x Mechanism HFR Reporting Completeness by Period")
+  
+  ggsave(file.path(viz_folder,"HFR_Completeness_Pd_Trends_all.png"), 
+    plot = spk_plot_all,
+    dpi = 300, 
+    width = 10, height = 5.625, scale = 1.25)
+  
+
 
   
