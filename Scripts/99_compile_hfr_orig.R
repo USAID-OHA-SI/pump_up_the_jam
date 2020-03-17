@@ -115,19 +115,22 @@ out_folder <- "Dataout"
   # filter master where there are files from fixed
   
   #late mechs
-  mech <- late_files %>% 
+  mech_fix <- late_files %>% 
     basename() %>% 
     str_extract("[:digit:]{5,6}")
   
-  pd <- late_files %>% 
+  pd_fix <- late_files %>% 
     basename() %>% 
     str_extract("(?<=\\.)[:digit:]{2}") %>% 
     str_remove("^0")
   
+  fixes <- tibble::tibble(mech_fix, pd_fix)
+  
+  
   
   # remove from master mech/pd combos that are present in the fixes
   df_hfr_sub <- df_hfr %>% 
-    filter(!(hfr_pd %in% pd & mech_code %in% mech))
+  dplyr::anti_join(fixes, by = c("mech_code" = "mech_fix", "hfr_pd" = "pd_fix"))
  
     ###
   
