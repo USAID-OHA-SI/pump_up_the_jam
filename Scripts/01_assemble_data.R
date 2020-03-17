@@ -88,7 +88,7 @@ library(Wavelength)
     
   #make sure all have the HFR PD (missing for DATIM)
     df_joint <- df_joint %>% 
-      mutate(date = as_date(date)) %>% 
+      hfr_fix_date() %>% 
       hfr_assign_pds()
     
   #arrange var order
