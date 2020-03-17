@@ -9,6 +9,7 @@
 # DEPENDENCIES ------------------------------------------------------------
 
 library(tidyverse)
+library(vroom)
 library(lubridate)
 library(Wavelength)
 
@@ -67,8 +68,8 @@ library(Wavelength)
 # IMPORT + AGGREGATE HFR --------------------------------------------------
 
   #import
-    df_hfr <- list.files(datim_folder, "inprocess", full.names = TRUE) %>% 
-      read_csv(col_types = c(.default = "c"))
+    df_hfr <- list.files(datim_folder, "hfr_pd1_pd4_clean_fixed", full.names = TRUE) %>% 
+      vroom::vroom(col_types = c(.default = "c"))
       
   #aggregate after removing extra
     df_hfr <- df_hfr %>% 
