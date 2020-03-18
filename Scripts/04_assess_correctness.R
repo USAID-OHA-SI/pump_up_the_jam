@@ -31,7 +31,7 @@ library(tidytext)
 # LOAD AND COMPLETENESS CALCULATIONS --------------------------------------
   
   df_datim_agg <- list.files(out_folder, "HFR_DATIM_FY20Q1_Agg_[[:digit:]]+\\.csv", full.names = TRUE) %>% 
-    vroom(col_types = c(.default = "c"))  
+    vroom()  
 
   # Collapse HFR down to the quarter level, aggregating hfr entries by mech + site
   # TX_CURR and TX_MMD need to use max as they are cumulative indicators, rest can be summe
