@@ -1,149 +1,124 @@
 ## PROJECT:  Pump up the jam
-## AUTHOR:   jdavis | USAID
+## AUTHOR:   jdavis, achafetz | USAID
 ## LICENSE:  download pds1-4 hfr processed data, clean for current pd, stitch
 ## PURPOSE:  structure project folders
 ## DATE:     2020-03-13
-## UPDATED:  To do: clean up and functionalize
+## UPDATED:  2020-03-17
 
 # DEPENDENCIES ------------------------------------------------------------
 
 library(tidyverse)
-library(lubridate)
-library(Wavelength)
+library(vroom)
 
 
 # GLOBALS -----------------------------------------------------------------
 
-pd1 <- "Data/old/2020.01"
-pd2 <- "Data/old/2020.02"
-pd3 <- "Data/old/2020.03"
-pd4 <- "Data/old/2020.04"
+  zipfolder <- "Data/HFR_Processed.zip"
+  unzipfolder <- "Data/HFR_Processed"
 
-date_pd1 <- c("2019-09-30", "2019-10-07", "2019-10-14", "2019-10-21")
-out_folder <- "Dataout"
+  data_folder <- "Data/HFR_Processed"
+  out_folder <- "Data"
 
-# check pds ---------------------------------------------------------------
 
-# create date / pd lists
 
-# pd1
+# REMOVE DUPLICATES -------------------------------------------------------
 
-  files <- list.files(pd1, "HFR", full.names = TRUE)
-
-  hfr1 <- map_dfr(.x = files,
-                .f = ~readr::read_csv(.x, col_types = c(.default = "c")))
-
-  hfr1 <- hfr1 %>% 
-    filter(hfr_pd == "1")
-
-# pd2
-
-  files <- list.files(pd2, "HFR", full.names = TRUE)
-
-  hfr2 <- map_dfr(.x = files,
-                .f = ~readr::read_csv(.x, col_types = c(.default = "c")))
-
-  hfr2 <- hfr2 %>% 
-    filter(hfr_pd == "2")
-  
-# pd3
-  
-  files <- list.files(pd3, "HFR", full.names = TRUE)
-  
-  hfr3 <- map_dfr(.x = files,
-                  .f = ~readr::read_csv(.x, col_types = c(.default = "c")))
-  
-  hfr3 <- hfr3 %>% 
-    filter(hfr_pd == "3")
-  
-# pd4
-  
-  files <- list.files(pd4, "HFR", full.names = TRUE)
-  
-  hfr4 <- map_dfr(.x = files,
-                  .f = ~readr::read_csv(.x, col_types = c(.default = "c")))
-  
-  hfr4 <- hfr4 %>% 
-    filter(hfr_pd == "4")
-  
-# bind
-  
-  df_hfr <- bind_rows(hfr1, hfr2, hfr3, hfr4) %>% 
-    mutate(val = as.numeric(val))
-
-  rm(hfr1, hfr2, hfr3, hfr4, pd1, pd2, pd3, pd4) 
-
-# compare late fixes
-  
-  # where are the fixes
-  late_data <- "Data/late"
-
-  late_files <- list.files(late_data, "HFR", full.names = TRUE)
-
- # function to create fixed file with only appropriate pds
-  
-  fixie <- function(file) {
     
-    #1 get mech names
+  # #table of all files
+  #   df_files <- unzip(zipfolder, list = TRUE) %>% 
+  #     pull(Name) %>% 
+  #     tibble(filepath = .)
+  # 
+  # #extract info from filenames for identifying dups
+  #   df_files <- df_files %>% 
+  #     mutate(ou = str_extract(filepath, "(?<=[:digit:]{2}_)[:upper:]{3}"),
+  #            mech_code = str_extract(filepath, "[:digit:]{5,6}"),
+  #            submission_pd = dirname(filepath),
+  #            hfr_pd = str_extract(filepath, "(?<=\\.)[:digit:]{2}") %>%
+  #              str_remove("^0"),
+  #            date = str_extract(filepath, "[:digit:]{8}"))
+  # 
+  # #flag dups, keep newest
+  #   dups <- df_files %>% 
+  #     group_by(submission_pd, hfr_pd, ou, mech_code) %>% 
+  #     filter(n() > 1) %>% 
+  #     ungroup() %>% 
+  #     arrange(submission_pd, mech_code, date) %>% 
+  #     group_by(submission_pd, mech_code) %>% 
+  #     mutate(action = ifelse(date == max(date), "keep", "delete")) %>% 
+  #     ungroup() %>% 
+  #     print(n = Inf)
+  # 
+  # #unzip files
+  #   dir.create(unzipfolder)
+  #   unzip(zipfolder, exdir = unzipfolder)
+  # 
+  # #delete duplicates
+  #   dups %>% 
+  #     filter(action == "delete") %>% 
+  #     pull(filepath) %>%
+  #     paste0(unzipfolder, "/", .) %>% 
+  #     unlink()
+  #   
+  
+# IMPORT FUNCTION ---------------------------------------------------------
+
+  import_processed <- function(path){
     
-      mech <- file %>% 
-        basename() %>% 
-        str_extract("[:digit:]{5,6}")
-      
-      #2 get intended pd #
-      
-      pd <- file %>% 
-        basename() %>% 
-        str_extract("(?<=\\.)[:digit:]{2}") %>% 
-        str_remove("^0")
-      
-      # read in and filter for only data from submitted pd
-      
-      df <- readr::read_csv(file, col_types = c(.default = "c")) %>% 
-      filter(mech_code %in% mech & hfr_pd %in% pd) %>% 
-        mutate(val = as.numeric(val))
-      
-      return(df)
+    df <- vroom(path, col_types = c(.default = "c"))
     
+    pd <- str_extract(path, "(?<=\\.)[:digit:]{2}") %>% str_remove("^0")
+    
+    df <- filter(df, hfr_pd == pd)
+    
+    invisible(df)
   }
+
+
+# IMPORT HFR FILES --------------------------------------------------------
+
+  #all files
+    files <- list.files(data_folder, recursive = TRUE, full.names = TRUE) 
   
+  #HFR orig submissions for Q1
+    files_norm <- str_subset(files, pattern = "FIXES|2020.05", negate = TRUE)
   
-  # read in fix file
-  df_fix <- map_dfr(.x = late_files,
-                    .f = ~fixie(.x)) 
-    
-  # filter master where there are files from fixed
-  
-  #late mechs
-  mech_fix <- late_files %>% 
-    basename() %>% 
-    str_extract("[:digit:]{5,6}")
-  
-  pd_fix <- late_files %>% 
-    basename() %>% 
-    str_extract("(?<=\\.)[:digit:]{2}") %>% 
-    str_remove("^0")
-  
-  fixes <- tibble::tibble(mech_fix, pd_fix)
-  
-  
-  
-  # remove from master mech/pd combos that are present in the fixes
-  df_hfr_sub <- df_hfr %>% 
-  dplyr::anti_join(fixes, by = c("mech_code" = "mech_fix", "hfr_pd" = "pd_fix"))
- 
-    ###
-  
-  df_master <- bind_rows(df_fix, df_hfr_sub)
-  
-  
-  # write file
-  
-  filename <- paste0("hfr_pd1_pd4_clean_fixed", format(Sys.Date(), "%Y%m%d"), ".csv")
-  write_csv(df_hfr, file.path(out_folder, filename))
+  #import
+    df_hfr <- map_dfr(files_norm, import_processed)
+
+
+# IMPORT FIXES & REPLACE --------------------------------------------------
+
+  #HFR fix/late files
+    files_fixes <- files %>% 
+      str_subset(pattern = "FIXES") %>% 
+      str_subset(pattern = "2020.05", negate = TRUE)
+
+  #import replacements
+    df_fix <- map_dfr(files_fixes, import_processed)
+
+
+  #create df for anti join to replace any existing
+    df_replacements <- files_fixes %>% 
+      tibble(filepath = .) %>% 
+      mutate(mech_code = str_extract(filepath, "[:digit:]{5,6}"),
+             hfr_pd = str_extract(filepath, "(?<=\\.)[:digit:]{2}") %>% 
+               str_remove("^0"))
+
+  #remove and add in replacements
+    df_full <- df_hfr %>% 
+      anti_join(df_replacements) %>% 
+      bind_rows(df_fix)
+
+
+# EXPORT ------------------------------------------------------------------
+
+
+  filename <- paste0("hfr_pd1_pd4_clean_fixed_", format(Sys.Date(), "%Y%m%d"), ".csv")
+  write_csv(df_full, file.path(out_folder, filename))
 
   
-  
+  unlink(unzipfolder, recursive = TRUE)
   
   
 
