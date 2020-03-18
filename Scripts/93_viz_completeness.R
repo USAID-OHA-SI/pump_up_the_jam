@@ -105,12 +105,13 @@ color_all_sites <- "#D3D3D3"
     prep_fitline <- function(df) {
       
       # Convert to numeric so it can be used in the local regression as a covariate
-      model_data <- df %>% mutate(timevar = as.numeric(hfr_pd))
+      #model_data <- df %>% mutate(timevar = as.numeric(hfr_pd))
       
-      models <- model_data  %>%
-        tidyr::nest(-site_type, - indicator) %>%
+      models <- df  %>% 
+        filter(!is.na(completeness)) %>% 
+        tidyr::nest(-site_type, -indicator) %>%
         mutate(
-          fit = purrr:: map(data, ~ loess(completeness ~ timevar, weights = mer_targets, span = 0.75, data = .)),
+          fit = purrr:: map(data, ~ loess(completeness ~ hfr_pd, weights = mer_targets, span = 0.75, data = .)),
           # Extract out fitted models
           fitted = purrr::map(fit, `[[`, "fitted")
         )
@@ -164,9 +165,6 @@ color_all_sites <- "#D3D3D3"
 
     df_results_sparkline <- prep_fitline(df_completeness_pds_viz) %>% 
       sparkline_prep()
-
-     
-  
   
 # PLOT --------------------------------------------------------------------
   
@@ -222,14 +220,14 @@ color_all_sites <- "#D3D3D3"
               size = 2.5, colour = "gray30", na.rm = TRUE) +
     scale_fill_viridis_c(option = "A", direction = -1, labels = percent, end = 0.9, alpha = 0.85) +
     facet_wrap(rev(site_type) ~ indicator, nrow = 1) +
-    labs(title = "FOCUSING ON IMPOTANT SITES PROVIDES BETTER REPORTING COMPLETENESS",
+    labs(title = "FOCUSING ON IMPORTANT SITES PROVIDES BETTER REPORTING COMPLETENESS",
          subtitle = "FY20Q1 Site x Mechanism HFR Reporting Completeness by Period",
          y = NULL, x = NULL, color = "Site Type",
          caption = "Note: Completeness derived by comparing HFR reporting against sites with DATIM results/targets
          Source: FY20Q1 MER + HFR",
          fill = "Reporting completeness (100% = all sites reporting) ") +
     theme_minimal() + 
-      coord_fixed(ratio = .007) +
+      coord_fixed(ratio = .006) +
     theme(legend.position = "top",
           legend.justification = c(0, 0),
           panel.grid = element_blank(),
@@ -242,11 +240,14 @@ color_all_sites <- "#D3D3D3"
   
   # Need two plots here, one w/ filtering out 0s one without
   # Functionalize plot
+  # TODO: determine if set.seed() belongs in setup function or not?
+  set.seed(20200318) # to have constant jitter; Not sure this is working
   
     sparkline_plot <- function(df) {
     # df = data frame to plot the sparkline
     # df_dot - data frame used to create the dot at end
-    
+
+      
     df %>% 
       ggplot(aes(hfr_pd, completeness, group = grp)) +
       geom_hline(aes(yintercept = 0), color = "gray30") +
