@@ -24,42 +24,42 @@ library(vroom)
 # REMOVE DUPLICATES -------------------------------------------------------
 
     
-  # #table of all files
-  #   df_files <- unzip(zipfolder, list = TRUE) %>% 
-  #     pull(Name) %>% 
-  #     tibble(filepath = .)
-  # 
-  # #extract info from filenames for identifying dups
-  #   df_files <- df_files %>% 
-  #     mutate(ou = str_extract(filepath, "(?<=[:digit:]{2}_)[:upper:]{3}"),
-  #            mech_code = str_extract(filepath, "[:digit:]{5,6}"),
-  #            submission_pd = dirname(filepath),
-  #            hfr_pd = str_extract(filepath, "(?<=\\.)[:digit:]{2}") %>%
-  #              str_remove("^0"),
-  #            date = str_extract(filepath, "[:digit:]{8}"))
-  # 
-  # #flag dups, keep newest
-  #   dups <- df_files %>% 
-  #     group_by(submission_pd, hfr_pd, ou, mech_code) %>% 
-  #     filter(n() > 1) %>% 
-  #     ungroup() %>% 
-  #     arrange(submission_pd, mech_code, date) %>% 
-  #     group_by(submission_pd, mech_code) %>% 
-  #     mutate(action = ifelse(date == max(date), "keep", "delete")) %>% 
-  #     ungroup() %>% 
-  #     print(n = Inf)
-  # 
-  # #unzip files
-  #   dir.create(unzipfolder)
-  #   unzip(zipfolder, exdir = unzipfolder)
-  # 
-  # #delete duplicates
-  #   dups %>% 
-  #     filter(action == "delete") %>% 
-  #     pull(filepath) %>%
-  #     paste0(unzipfolder, "/", .) %>% 
-  #     unlink()
-  #   
+  #table of all files
+    df_files <- unzip(zipfolder, list = TRUE) %>%
+      pull(Name) %>%
+      tibble(filepath = .)
+
+  #extract info from filenames for identifying dups
+    df_files <- df_files %>%
+      mutate(ou = str_extract(filepath, "(?<=[:digit:]{2}_)[:upper:]{3}"),
+             mech_code = str_extract(filepath, "[:digit:]{5,6}"),
+             submission_pd = dirname(filepath),
+             hfr_pd = str_extract(filepath, "(?<=\\.)[:digit:]{2}") %>%
+               str_remove("^0"),
+             date = str_extract(filepath, "[:digit:]{8}"))
+
+  #flag dups, keep newest
+    dups <- df_files %>%
+      group_by(submission_pd, hfr_pd, ou, mech_code) %>%
+      filter(n() > 1) %>%
+      ungroup() %>%
+      arrange(submission_pd, mech_code, date) %>%
+      group_by(submission_pd, mech_code) %>%
+      mutate(action = ifelse(date == max(date), "keep", "delete")) %>%
+      ungroup() %>%
+      print(n = Inf)
+
+  #unzip files
+    dir.create(unzipfolder)
+    unzip(zipfolder, exdir = unzipfolder)
+
+  #delete duplicates
+    dups %>%
+      filter(action == "delete") %>%
+      pull(filepath) %>%
+      paste0(unzipfolder, "/", .) %>%
+      unlink()
+
   
 # IMPORT FUNCTION ---------------------------------------------------------
 
