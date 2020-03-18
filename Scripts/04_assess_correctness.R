@@ -12,11 +12,14 @@ library(lubridate)
 library(Wavelength)
 library(vroom)
 library(tidytext)
+library(scales)
+library(extrafont)
 
 
 # GLOBALS -----------------------------------------------------------------
 
   out_folder <- "Dataout"
+  viz_folder <- "Images"
   
   prinf <- function(df) {
     print(df, n = Inf)
@@ -27,6 +30,11 @@ library(tidytext)
     ifelse(y > 0.000, x / y, NA)
   }
   
+  
+  pal <- viridis_pal()(6) #%>% show_col()
+  color_hv_sites <- pal[1]
+  color_ref <- "#C8C8C8"
+  color_all_sites <- "gray30" #"#D3D3D3"
 
 # LOAD AND COMPLETENESS CALCULATIONS --------------------------------------
   
@@ -78,23 +86,32 @@ library(tidytext)
     ggplot(aes(x = mer_results, y = hfr_results, colour = hv_flag, 
       size = mer_targets)) + 
     geom_point(aes(alpha = 0.80)) +
-     geom_label(aes(label = scales::percent(round(ou_annotation, 2))), size = 4) +
+    geom_abline(intercept = 0, slope = 1, colour = "#909090") +
+     geom_label(aes(label = scales::percent(round(ou_annotation, 2))), size = 4, 
+                hjust = 1, vjust = 1, fill = "white",
+                family = "Source Sans Pro") +
     facet_wrap(ou_order ~ hv_flag, scales = "free",
       labeller = label_wrap_gen(multi_line = FALSE)) +
     theme_minimal() +
-    scale_colour_manual(values = c("High Volume" = "#66c2a5", "Low Volume" = "#fc8d62")) +
-    geom_abline(intercept = 0, slope = 1, colour = "#909090") +
+    scale_colour_manual(values = c("High Volume" = color_hv_sites, "Low Volume" = color_all_sites)) +
+    scale_y_continuous(labels = comma) +
+    scale_x_continuous(labels = comma) +
      theme(legend.position = "none",
        legend.justification = "left",
        legend.key.size = unit(2, "cm"),
        strip.text = element_text(hjust = 0)) +
      scale_size(guide = "none") +
      labs(x = "MER results", y = "HFR results",
-       title = "Mozambique",
-       caption = "placeholder2",
-       colour = "")
+       title = "SIMILAR TRENDS IN CORRECTNESS ACROSS SITE TYPES",
+       subtitle = "FY20Q1 Site x Mechanism HFR Reporting Correctness",
+       caption = "Source: FY20Q1 MER + HFR",
+       colour = "") +
+   theme(text = element_text(family = "Source Sans Pro"),
+         plot.title = element_text(face = "bold"))
      
-  
+   ggsave(file.path(viz_folder,"HFR_Correctness.png"), dpi = 300, 
+          width = 10, height = 5.625, scale = 1.25)
+   
  #dump building block dfs
   #rm(list = ls(pattern = "*df_q1_"))
   
