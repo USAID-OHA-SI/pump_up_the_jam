@@ -159,10 +159,6 @@
   
  # Summary graphic explaining tagging process
     df_datim_wgts %>% 
-    filter(operatingunit == "Botswana" & indicator == "TX_CURR") %>% 
-     ggplot(aes(x = site_targets_sh, y = indicator)) + geom_bar()
-    
-    df_datim_wgts %>% 
       filter(operatingunit == "Botswana" & indicator == "TX_CURR") %>% 
       mutate(sort_order = str_c(mech_code, "+", orgunituid),
         sort_order = fct_reorder(sort_order, site_targets_sh)) %>% 
