@@ -84,13 +84,13 @@ library(ggrepel)
 
   #plot and save for HTS_TST, TX_NEW, TX_CURR
     plot_cness(df_q1_cness, "HTS_TST", top_ous) +
-      labs(title = "SIMILAR TRENDS IN CORRECTNESS ACROSS SITE TYPES")
+      labs(title = "BETTER CORRECTNESS IN HIGH VOLUME SITES")
     
       ggsave(file.path(viz_folder,"HFR_Correctness_HTS_TST.png"), dpi = 300, 
              width = 10, height = 5.625, scale = 1.25)
       
     plot_cness(df_q1_cness, "TX_NEW", top_ous) +
-      labs(title = "SIMILAR TRENDS IN CORRECTNESS ACROSS SITE TYPES")
+      labs(title = "MOSTLY BETTER CORRECTNESS IN HIGH VOLUME SITES")
     
       ggsave(file.path(viz_folder,"HFR_Correctness_TX_NEW.png"), dpi = 300, 
              width = 10, height = 5.625, scale = 1.25)
