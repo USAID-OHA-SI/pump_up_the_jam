@@ -25,7 +25,7 @@ ind_sel  <- c("HTS_TST", "TX_NEW", "TX_CURR")
 
 pal <- viridis_pal()(6) #%>% show_col()
 color_hv_sites <- pal[1]
-color_ref <- "#C8C8C8"
+color_ref <- "gray30" #"#C8C8C8"
 color_all_sites <- "#D3D3D3"
 
 # IMPORT ------------------------------------------------------------------
@@ -172,6 +172,81 @@ color_all_sites <- "#D3D3D3"
   theme_set(theme_minimal(base_family = "Source Sans Pro"))
   
   my_title <- "<b><span style = 'color:#440154;'>HIGH VOLUME SITES</span></b> ARE REPORTING AT HIGHER LEVELS THAN OTHER SITES</span></b>"
+  
+  df_completeness_viz %>%
+    filter(indicator %in% ind_sel,
+           site_type != "Low Volume (Target)") %>%
+    group_by(operatingunit) %>%
+    mutate(sort_max = if_else(site_type =="High Volume (Target)" & indicator == "HTS_TST", completeness, NA_real_)) %>%
+    fill(sort_max, .direction = "updown") %>%
+    ungroup() %>%
+    filter(site_type == "All") %>% 
+    mutate(indicator = factor(indicator, ind_sel),
+           ou_sort = fct_reorder(operatingunit, sort_max)) %>%
+    ggplot(aes(ou_sort, completeness, group = operatingunit, color = site_type)) +
+    geom_hline(aes(yintercept = 0), color = "gray40") +
+    geom_hline(aes(yintercept = 1), color = "gray40") + #, linetype = "dashed"
+    geom_hline(aes(yintercept = completeness_global), color = color_ref, linetype = "dashed", size = .5) +
+    #geom_path(size = .6, color = 'gray70') +
+    geom_point(size = 4, alpha = 0) +
+    scale_y_continuous(labels = percent) +
+    scale_color_manual(values = c(color_all_sites, color_hv_sites)) +
+    coord_flip() +
+    facet_grid(~ indicator) +
+    labs(title = my_title,
+         subtitle = "FY20Q1 Site x Mechanism HFR Reporting Completeness",
+         y = NULL, x = NULL, color = "Site Type",
+         caption = "Notes:
+         (a) Completeness derived by comparing HFR reporting against sites with DATIM results/targets
+         (b) The green dashed line denoted global completeness of reporting
+         Source: FY20Q1 MER + HFR") +
+    theme_minimal() +
+    theme(strip.text = element_text(hjust = 0),
+          legend.position = "top",
+          legend.justification = c(0, 0),
+          plot.title = element_markdown(hjust = 0, size = 14, face = "bold", color = "gray30"),
+          plot.caption = element_text(color = "gray30", size = 8))
+  
+  ggsave(file.path(viz_folder,"HFR_Completeness_StepA.png"), dpi = 300, 
+         width = 10, height = 5.625, scale = 1.25)
+  
+  df_completeness_viz %>%
+    filter(indicator %in% ind_sel,
+           site_type != "Low Volume (Target)") %>%
+    group_by(operatingunit) %>%
+    mutate(sort_max = if_else(site_type =="High Volume (Target)" & indicator == "HTS_TST", completeness, NA_real_)) %>%
+    fill(sort_max, .direction = "updown") %>%
+    ungroup() %>%
+    filter(site_type == "All") %>% 
+    mutate(indicator = factor(indicator, ind_sel),
+           ou_sort = fct_reorder(operatingunit, sort_max)) %>%
+    ggplot(aes(ou_sort, completeness, group = operatingunit, color = site_type)) +
+    geom_hline(aes(yintercept = 0), color = "gray40") +
+    geom_hline(aes(yintercept = 1), color = "gray40") + #, linetype = "dashed"
+    geom_hline(aes(yintercept = completeness_global), color = color_ref, linetype = "dashed", size = .5) +
+    #geom_path(size = .6, color = 'gray70') +
+    geom_point(size = 4) +
+    scale_y_continuous(labels = percent) +
+    scale_color_manual(values = c(color_all_sites, color_hv_sites)) +
+    coord_flip() +
+    facet_grid(~ indicator) +
+    labs(title = my_title,
+         subtitle = "FY20Q1 Site x Mechanism HFR Reporting Completeness",
+         y = NULL, x = NULL, color = "Site Type",
+         caption = "Notes:
+         (a) Completeness derived by comparing HFR reporting against sites with DATIM results/targets
+         (b) The green dashed line denoted global completeness of reporting
+         Source: FY20Q1 MER + HFR") +
+    theme_minimal() +
+    theme(strip.text = element_text(hjust = 0),
+          legend.position = "top",
+          legend.justification = c(0, 0),
+          plot.title = element_markdown(hjust = 0, size = 14, face = "bold", color = "gray30"),
+          plot.caption = element_text(color = "gray30", size = 8))
+  
+  ggsave(file.path(viz_folder,"HFR_Completeness_StepB.png"), dpi = 300, 
+         width = 10, height = 5.625, scale = 1.25)
+  
   
   df_completeness_viz %>%
     filter(indicator %in% ind_sel,
