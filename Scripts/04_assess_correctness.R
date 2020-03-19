@@ -64,8 +64,9 @@ library(extrafont)
     mutate(ou_correctness_ratio = ratio_calc(hfr_results_ou, mer_results_ou)) %>% 
     group_by(operatingunit, indicator, impflag_targets) %>% 
     mutate(max_tmp = max(mer_results),
-      max_tmp2 = max(hfr_results),
-      ou_annotation = ifelse(mer_results == max_tmp & hfr_results == max_tmp2, ou_correctness_ratio, NA_integer_))
+           max_tmp2 = max(hfr_results)) %>% 
+    ungroup() %>% 
+    mutate(ou_annotation = ifelse(mer_results == max_tmp, ou_correctness_ratio, NA_integer_))
   
   df_q1_cness %>% 
     group_by(operatingunit, indicator, impflag_targets) %>% 
