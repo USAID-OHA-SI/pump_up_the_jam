@@ -82,11 +82,11 @@ color_all_sites <- "#D3D3D3"
   # NOTE: Didn't work out as expect, simply adding a circle at the end of fitted line
   # Functions to allow for filtering on the data frames going into the flow process
     
-    heatmap_prep <- function(df) {
+    heatmap_prep <- function(df, ind) {
       df <-
         df_completeness_pds_viz %>%
         filter(
-          indicator %in% ind_sel,
+          indicator %in% {{ind}},
           site_type != "Low Volume (Target)"
         ) %>%
         group_by(operatingunit) %>%
@@ -94,7 +94,7 @@ color_all_sites <- "#D3D3D3"
         fill(sort_max, .direction = "updown") %>%
         ungroup() %>%
         mutate(
-          indicator = factor(indicator, ind_sel),
+          indicator = factor(indicator, {{ind}}),
           ou_sort = fct_reorder(operatingunit, sort_max),
           rank = percent_rank(completeness)
         )
@@ -158,7 +158,8 @@ color_all_sites <- "#D3D3D3"
   }
    
   # Prep data frames needed for sparklines; Collapse function called within ggplot function 
-    df_heatmap <- heatmap_prep(df_completeness_pds_viz)
+    df_heatmap <- heatmap_prep(df_completeness_pds_viz, ind_sel)
+    df_heatmap_all <- heatmap_prep(df_completeness_pds_viz, c("HTS_TST", "HTS_TST_POS", "TX_NEW", "VMMC_CIRC", "PrEP_NEW", "TX_CURR", "TX_MMD"))
     
     df_results_nonzero_sparkline <- prep_fitline(df_completeness_pds_viz %>% filter(completeness > 0)) %>%
       sparkline_prep()
@@ -286,6 +287,31 @@ color_all_sites <- "#D3D3D3"
   
   
 
+  # Heatmap of completeness with fixed coordinates to get squares   
+  df_heatmap_all %>%
+    filter(site_type == "All") %>% 
+    ggplot(aes(hfr_pd, ou_sort, fill = completeness)) +
+    geom_tile(color = "white", size = 0.25) +
+    geom_text(aes(label = ifelse(rank < 0.50, percent(completeness), NA_real_)),
+              size = 2.5, colour = "gray30", na.rm = TRUE) +
+    scale_fill_viridis_c(option = "A", direction = -1, labels = percent, end = 0.9, alpha = 0.85) +
+    facet_wrap(~ indicator, nrow = 1) +
+    labs(title = "COMPLETENESS TRENDS ACROSS ALL SITES",
+         subtitle = "FY20Q1 Site x Mechanism HFR Reporting Completeness by Period",
+         y = NULL, x = NULL, color = "Site Type",
+         caption = "Note: Completeness derived by comparing HFR reporting against sites with DATIM results/targets
+         Source: FY20Q1 MER + HFR",
+         fill = "Reporting completeness (100% = all sites reporting) ") +
+    theme_minimal() + 
+    coord_fixed(ratio = .006) +
+    theme(legend.position = "top",
+          legend.justification = c(0, 0),
+          panel.grid = element_blank(),
+          axis.text.x = element_text(size = 7),
+          strip.text = element_text(hjust = 0))
+  
+  ggsave(file.path(viz_folder,"HFR_Completeness_Pd_All_Ind.png"), dpi = 300, 
+         width = 18, height = 10)
   
   # Heatmap of completeness with fixed coordinates to get squares   
   df_heatmap %>% 
