@@ -79,12 +79,32 @@
       arrange(operatingunit, indicator) %>% 
       mutate(ou_id = group_indices(., operatingunit))
 
-    #TODO: Global data frame w/ correct aggregates  
+    #Global data frame w/ correct aggregates  
     
+    df_cc_glob <- df_q1 %>%
+      filter(indicator %in% ind_sel,
+             !(has_hfr_reporting == TRUE & is_datim_site == FALSE)) %>% 
+      filter_at(vars(hfr_results, mer_results, mer_targets), any_vars(.!=0)) %>% 
+      group_by(indicator) %>% 
+      summarise_at(vars(hfr_results, mer_results, mer_targets, has_hfr_reporting, is_datim_site), sum, na.rm = TRUE) %>% 
+      ungroup() %>% 
+      mutate(completeness_value = case_when(is_datim_site >  0 ~ has_hfr_reporting / is_datim_site),
+             completeness_dist = abs(1-completeness_value),
+             correctness_value = hfr_results/mer_results,
+             correctness_dist = abs(1-correctness_value))
+    
+    #reshape to get completeness/correctness in one col for plotting and value/dist as their own cols
+    df_cc_glob <- df_cc_glob %>% 
+      select(indicator, n_sites = is_datim_site, completeness_value:correctness_dist) %>% 
+      gather(type, value, -indicator, -n_sites) %>% 
+      separate(type, c("measure", "type")) %>% 
+      spread(type, value) %>% 
+      mutate(indicator = factor(indicator, ind_sel))
 
 # PLOT --------------------------------------------------------------------
 
-  
+  theme_set(theme_minimal(base_family = "Source Sans Pro"))
+    
   #dot comparison of completeness + correctness by OU
     df_cc %>% 
       ggplot(aes(measure, operatingunit, size = n_sites, color = dist)) +
@@ -266,4 +286,33 @@
     #TODO: DETERMINE BEST LAYOUT FOR THESE. MIGRATE DATA FRAMES OVER TO TABLEAU FOR TEMPLATING.
     
   
+
+# INTRO SLIDE PLOT --------------------------------------------------------
+
+    
+    df_cc %>% 
+      ggplot(aes(value, fct_rev(measure)), color = "#595959") + 
+      geom_vline(aes(xintercept = 1), color = "gray60", linetype = "dashed") +
+      geom_jitter(alpha = .4, height = .1, size = 3, na.rm = TRUE) +
+      geom_point(data = df_cc_glob, aes(value, fct_rev(measure)), size = 7, color = "#0067b9ff") +
+      geom_text(data = df_cc_glob, aes(label = percent(value, 1)),
+                size = 2.6, color = "white",
+                family = "Source Sans Pro") +
+      facet_grid(indicator ~ ., switch = "y") +
+      scale_x_continuous(labels = percent) +
+      scale_color_manual(values = c("#8C88BF", "#730E75"), guide = FALSE) +
+      labs(x = NULL, y = NULL,
+           title = "BETTER TREATMENT REPORTING \nTHAN TESTING IN FY20Q1",
+           caption = "Source: FY20Q1 MER + HFR") +
+      theme(strip.placement = "outside",
+            strip.text = element_text(face = "bold"),
+            panel.border = element_rect(color = "gray60", fill = NA),
+            panel.grid.major.y = element_blank(),
+            plot.title = element_text(face = "bold"),
+            plot.caption = element_text(color = "gray30", face = "plain"))
+    
+    ggsave(file.path(viz_folder,"HFR_CC_Intro.png"), dpi = 300, 
+           width = 4.8, height = 5.4)  
+    
+    
     
