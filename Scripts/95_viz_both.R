@@ -28,6 +28,8 @@
   color_ref <- "gray30" #"#C8C8C8"
   color_all_sites <- "#D3D3D3"
 
+  cc_thresh = 0.80
+
 
 # IMPORT ------------------------------------------------------------------
 
@@ -77,7 +79,17 @@
       mutate(indicator_ave = mean(value, na.rm = TRUE)) %>% 
       ungroup() %>% 
       arrange(operatingunit, indicator) %>% 
-      mutate(ou_id = group_indices(., operatingunit))
+      mutate(ou_id = group_indices(., operatingunit)) %>% 
+    ungroup() %>% 
+      group_by(operatingunit, indicator) %>% 
+      mutate(comp_value = ifelse(measure == "completeness", value, NA_real_)) %>% 
+      fill(comp_value, .direction = "updown") %>% 
+      mutate(corr_value = ifelse(measure == "correctness", value, NA_real_)) %>% 
+      fill(corr_value, .direction = "updown") %>% 
+    ungroup() %>% 
+      mutate(ou_corr_sort = reorder_within(operatingunit, comp_value, indicator, .desc = TRUE),
+        color_flag = if_else(comp_value >= cc_thresh & corr_value >=  cc_thresh, 1, 0))
+      
 
     #Global data frame w/ correct aggregates  
     
@@ -105,7 +117,7 @@
 
   theme_set(theme_minimal(base_family = "Source Sans Pro"))
     
-  #dot comparison of completeness + correctness by OU
+  #dot comparison of completeness + correctness by O
     df_cc %>% 
       ggplot(aes(measure, operatingunit, size = n_sites, color = dist)) +
       geom_point() +
@@ -133,8 +145,39 @@
             #legend.justification = c(0, 0)
             )
     
-    ggsave(file.path(viz_folder,"HFR_CC_Comparison.png"), dpi = 300, 
+    
+    #dot comparison of completeness + correctness by O
+    df_cc %>% 
+      ggplot(aes(measure, ou_corr_sort)) +
+      geom_tile(aes(fill = factor(color_flag)), colour = "#404040") +
+      #geom_tile(aes(fill = factor(ifelse(value >= cc_thresh, 1, 0))), colour = "#404040") +
+      geom_text(aes(label = percent(value, 1)), na.rm = TRUE,
+        family = "Source Sans Pro", size = 3,) +
+      facet_wrap(~indicator, scales = "free_y") +
+      scale_size_continuous(labels = comma) +
+      scale_y_reordered() +
+      scale_x_discrete(position = "top") +
+      scale_fill_manual(values = c("0" = "#f4f4f4", "1" = "#c2a5cf")) +
+      labs(x = NULL, y = NULL,
+        #color = "Reporting completeness/correctness distance from 100% complete/correct",
+        size = "number of sites",
+        title = "FEW SITES REPORT HIGH LEVELS (>80%) OF BOTH COMPLETENESS/CORRECTNESS",
+        subtitle = "FY20Q1 Site x Mechanism HFR Reporting Completeness and Correctness",
+        caption = "Source: FY20Q1 MER + HFR") +
+      theme_minimal() +
+      guides(size = guide_legend(reverse=T))+
+      theme(panel.grid = element_blank(),
+        text = element_text(family = "Source Sans Pro"),
+        strip.placement = "outside",
+        legend.position = "none",
+        strip.text = element_text(hjust = 0)
+        #legend.justification = c(0, 0)
+      )
+    
+    ggsave(file.path(viz_folder,"HFR_CC_table_Comparison.png"), dpi = 300, 
            width = 10, height = 5.625)  
+    
+    
   
 
     #scatter plots of correctness + completeness by OU (single plot)
