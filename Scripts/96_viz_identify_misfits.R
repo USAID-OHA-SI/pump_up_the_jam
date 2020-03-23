@@ -1,7 +1,7 @@
 ## PROJECT:  Pump up the jam
 ## AUTHOR:   A.Chafetz, T.Essam | USAID
 ## LICENSE:  MIT
-## PURPOSE:  vaudit plots to identify mechs w/ improper HFR submissions
+## PURPOSE:  audit plots to identify mechs w/ improper HFR submissions
 ## DATE:     2020-03-23
 
 # DEPENDENCIES ------------------------------------------------------------
