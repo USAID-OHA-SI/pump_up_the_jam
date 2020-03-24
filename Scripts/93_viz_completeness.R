@@ -290,6 +290,7 @@ color_all_sites <- "#D3D3D3"
   # Heatmap of completeness with fixed coordinates to get squares   
   df_heatmap_all %>%
     filter(site_type == "All") %>% 
+    mutate(hfr_pd = str_remove(hfr_pd, "2020.")) %>% 
     ggplot(aes(hfr_pd, ou_sort, fill = completeness)) +
     geom_tile(color = "white", size = 0.25) +
     geom_text(aes(label = ifelse(rank < 0.50, percent(completeness), NA_real_)),
@@ -303,14 +304,14 @@ color_all_sites <- "#D3D3D3"
          Source: FY20Q1 MER + HFR",
          fill = "Reporting completeness (100% = all sites reporting) ") +
     theme_minimal() + 
-    coord_fixed(ratio = .006) +
+    # coord_fixed(ratio = .006) +
     theme(legend.position = "top",
           legend.justification = c(0, 0),
           panel.grid = element_blank(),
           axis.text.x = element_text(size = 7),
           strip.text = element_text(hjust = 0))
   
-  ggsave(file.path(viz_folder,"HFR_Completeness_Pd_All_Ind.png"), dpi = 300, 
+  ggsave(file.path(viz_folder,"HFR_Completeness_Pd_All_Indv2.png"), dpi = 300, 
          width = 18, height = 10)
   
   # Heatmap of completeness with fixed coordinates to get squares   

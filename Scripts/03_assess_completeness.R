@@ -30,10 +30,6 @@ out_folder <- "Dataout"
   #change hfr reporting variable for clarity
     df_joint <- rename(df_joint, hfr_results = val)
     
-  #remove data post Q1 for all but TX_CURR
-    df_joint <- df_joint %>% 
-      mutate(date = as_date(date)) %>% 
-      filter(!(indicator != "TX_CURR" & date >= "2019-12-30")) 
     
     #check
       # df_joint %>%

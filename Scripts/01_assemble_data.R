@@ -17,7 +17,7 @@ library(Wavelength)
 # GLOBAL VARIABLES --------------------------------------------------------
 
   start_date <- "2019-09-30"
-  weeks <- 16
+  weeks <- 20
   hfr_folder <- "Data"
   datim_folder <- "Data"
   out_folder <- "Dataout"
@@ -68,7 +68,7 @@ library(Wavelength)
 # IMPORT + AGGREGATE HFR --------------------------------------------------
 
   #import
-    df_hfr <- list.files(datim_folder, "hfr_pd1_pd4_clean_fixed", full.names = TRUE) %>% 
+    df_hfr <- list.files(datim_folder, "hfr_pd1_pd5_clean_fixed", full.names = TRUE) %>% 
       vroom::vroom(col_types = c(.default = "c"))
       
   #aggregate after removing extra

@@ -81,7 +81,7 @@ library(vroom)
     files <- list.files(data_folder, recursive = TRUE, full.names = TRUE) 
   
   #HFR orig submissions for Q1
-    files_norm <- str_subset(files, pattern = "FIXES|2020.05", negate = TRUE)
+    files_norm <- str_subset(files, pattern = "FIXES", negate = TRUE)
   
   #import
     df_hfr <- map_dfr(files_norm, import_processed)
@@ -91,8 +91,7 @@ library(vroom)
 
   #HFR fix/late files
     files_fixes <- files %>% 
-      str_subset(pattern = "FIXES") %>% 
-      str_subset(pattern = "2020.05", negate = TRUE)
+      str_subset(pattern = "FIXES") 
 
   #import replacements
     df_fix <- map_dfr(files_fixes, import_processed)
@@ -114,7 +113,7 @@ library(vroom)
 # EXPORT ------------------------------------------------------------------
 
 
-  filename <- paste0("hfr_pd1_pd4_clean_fixed_", format(Sys.Date(), "%Y%m%d"), ".csv")
+  filename <- paste0("hfr_pd1_pd5_clean_fixed_", format(Sys.Date(), "%Y%m%d"), ".csv")
   write_csv(df_full, file.path(out_folder, filename))
 
   
