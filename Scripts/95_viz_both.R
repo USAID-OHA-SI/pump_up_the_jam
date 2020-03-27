@@ -14,6 +14,7 @@
   library(scales)
   library(extrafont)
   library(ggtext)
+  library(tidytext)
 
 
 # GLOBAL VARIABLES --------------------------------------------------------
