@@ -210,7 +210,7 @@ out_folder <- "Dataout"
   #save
     write_csv(df_q1, file.path(out_folder, filename), na = "")
     write_csv(df_completeness_viz, file.path(out_folder, filename_comp), na = "")
-    # write_csv(df_pds, file.path(out_folder, filename_pds), na = "")
+    write_csv(df_pds, file.path(out_folder, filename_pds), na = "")
     write_csv(df_completeness_pds_viz, file.path(out_folder, filename_pds_comp), na = "")
       
     

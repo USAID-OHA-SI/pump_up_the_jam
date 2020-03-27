@@ -25,16 +25,23 @@ library(ggtext)
   color_ou_avg <- "#0067B9" #USAID Med Blue
   color_mechs <- "gray30" #"#C8C8C8"
 
+  color_bar <- "#A7C6ED" #USAID Light Blue
+  color_target <- color_ou_avg
 
 # IMPORT ------------------------------------------------------------------
 
   #import
     df_q1 <- list.files(out_folder, "HFR_DATIM_FY20Q1_Agg_[[:digit:]]+\\.csv", full.names = TRUE) %>% 
       vroom()
+  
+    df_pds_comp_gap <- list.files(out_folder, "HFR_OU_Pd_GapTarget_CompleteOnly_[[:digit:]]+\\.csv", full.names = TRUE) %>% 
+      vroom()
 
 
 # MUNGE -------------------------------------------------------------------
 
+## Completeness/Correctness
+    
   #calc OU level completeness and correctnessess (and their distance from 100% for color) 
     df_cc_site <- df_q1 %>%
       filter(!(has_hfr_reporting == TRUE & is_datim_site == FALSE)) %>% 
@@ -71,10 +78,18 @@ library(ggtext)
                                        operatingunit == "Western Hemisphere Region" ~ "WH Region",
                                        TRUE ~ operatingunit))
   
-  
+## Gap target
+    
+  #clean up
+    df_gap <- df_pds_comp_gap %>% 
+      mutate(hfr_pd = as.character(hfr_pd),
+             operatingunit = case_when(operatingunit == "Democratic Republic of the Congo" ~ "DRC",
+                                              operatingunit == "Dominican Republic" ~ "DR",
+                                              operatingunit == "Western Hemisphere Region" ~ "WH Region",
+                                              TRUE ~ operatingunit))
 
 
-# PLOT FUNCTION -----------------------------------------------------------
+# CC PLOT FUNCTION --------------------------------------------------------
 
     plot_cc <- function(ind, path_out = NULL){
       
@@ -107,6 +122,41 @@ library(ggtext)
       }
       
     }    
+    
+    
+
+# GAP TRENDS PLOT FUNCTION ------------------------------------------------
+
+  plot_gap <- function(ind, path_out = NULL){
+  
+    viz <- df_gap %>% 
+      filter(indicator == {{ind}}) %>% 
+      ggplot(aes(hfr_pd, hfr_results)) +
+      geom_col(fill = color_bar) +
+      geom_hline(aes(yintercept = 0), color = "gray30") +
+      geom_hline(aes(yintercept = gap_target), color = color_target, size = 1.2) +
+      facet_wrap(~ fct_reorder(operatingunit, mer_targets, .desc = TRUE), scale = "free_y") +
+      scale_y_continuous(label = comma) +
+      labs(x = NULL, y = NULL,
+           title = paste({{ind}}, "| HFR Results Against Period Gap Target"),
+           caption =  "Note: Gap Target = FY Target / 13 
+           Source: FY20Q1 MER + HFR") +
+      theme(plot.title = element_text(face = "bold"),
+            strip.text = element_text(face = "bold"),
+            plot.caption = element_text(color = "gray30", face = "plain"),
+            panel.grid = element_blank())
+    
+    if(!is.null(path_out)){
+      ggsave(file.path(path_out, paste0("Q1Review_Gap_", {{ind}}, ".png")), viz, 
+             dpi = 330, width = 10, height = 5.66)
+    } else {
+      return(viz)
+    }
+    
+    }
+    
+    
+        
 # PLOT --------------------------------------------------------------------
 
   theme_set(theme_minimal(base_family = "Source Sans Pro"))
@@ -122,4 +172,10 @@ library(ggtext)
       walk(plot_cc, viz_folder)
 
 
-
+  #test
+    plot_gap("HTS_TST")
+    
+  #output for each ind
+    walk(unique(df_gap$indicator),
+         plot_gap, viz_folder)
+    
