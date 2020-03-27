@@ -64,6 +64,7 @@ library(vroom)
 
 # EXPORT ------------------------------------------------------------------
 
-  write_csv(df_pds_comp_gap, file.path(out_folder, "HFR_OU_Pd_GapTarget_CompleteOnly.csv"), na = "")
-  
+  write_csv(df_pds_comp_gap, file.path(out_folder, 
+                                       paste0("HFR_OU_Pd_GapTarget_CompleteOnly_", format(Sys.Date(), "%Y%m%d"), ".csv")),
+            na = "")  
 
