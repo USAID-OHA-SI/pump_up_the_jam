@@ -3,7 +3,7 @@
 ## LICENSE:  MIT
 ## PURPOSE:  calculate completeness of reporting
 ## DATE:     2020-03-11
-## UPDATED:  2020-03-16
+## UPDATED:  2020-03-28
 
 
 # DEPENDENCIES ------------------------------------------------------------
@@ -44,174 +44,161 @@ out_folder <- "Dataout"
     df_joint_lng <- df_joint %>% 
       gather(type, value, hfr_results, mer_results, mer_targets, na.rm = TRUE) %>% 
       mutate(value = as.double(value))
+ 
+    rm(df_joint)
     
+# AGGREGATION + MUNGING FUNCTIONS BY PD TYPE ------------------------------
 
-# QUARTERLY AGGREGATION ---------------------------------------------------
-
-  #create a FY20Q1 value for non-TX_CURR indicators
-    df_q1_sum <- df_joint_lng %>% 
-      filter(!indicator %in% c("TX_CURR", "TX_MMD"),
-             type == "hfr_results") %>% 
-      select(-date, -hfr_pd) %>% 
-      group_by_if(is.character) %>% 
-      summarise(value = sum(value, na.rm = TRUE)) %>% 
-      ungroup()
+  #aggregate by period type
     
-  #create a FY20Q1 value for non-TX_CURR indicators
-    df_q1_max <- df_joint_lng %>% 
-      filter(indicator %in% c("TX_CURR", "TX_MMD") |
-             type %in% c("mer_results", "mer_targets")) %>% 
-      select(-date, -hfr_pd) %>% 
-      group_by_if(is.character) %>% 
-      summarise_if(is.numeric, max, na.rm = TRUE) %>% 
-      ungroup()
-  
-  #join FY20Q1 dataset & respread
-    df_q1 <- bind_rows(df_q1_sum, df_q1_max)  %>% 
-      spread(type, value, fill = 0)   #treat 0's as NA -> convert all NAs to 0
-  
-    rm(df_q1_max, df_q1_sum)    
-
-# PERIOD AGGREGATION ------------------------------------------------------
-
-    #create a FY20Q1 value for non-TX_CURR indicators
-    df_pds_sum <- df_joint_lng %>% 
-      filter(!indicator %in% c("TX_CURR", "TX_MMD"),
-             type == "hfr_results") %>% 
-      select(-date) %>% 
-      group_by_if(is.character) %>% 
-      summarise(value = sum(value, na.rm = TRUE)) %>% 
-      ungroup()
-    
-    #create a FY20Q1 value for non-TX_CURR indicators
-    df_pds_max <- df_joint_lng %>% 
-      filter(indicator %in% c("TX_CURR", "TX_MMD") |
-               type %in% c("mer_results", "mer_targets")) %>% 
-      select(-date) %>% 
-      group_by_if(is.character) %>% 
-      summarise_if(is.numeric, max, na.rm = TRUE) %>% 
-      ungroup()
-    
-    #join FY20Q1 dataset & respread
-    df_pds <- bind_rows(df_pds_sum, df_pds_max)  %>% 
-      spread(type, value, fill = 0)   #treat 0's as NA -> convert all NAs to 0
-    
-    rm(df_pds_max, df_pds_sum)
-
-# MERGE DATIM FLAGS -------------------------------------------------------
-
-  #import volume weighting
-    df_datim_wgts <- list.files(out_folder, "DATIM_FLAGS_[[:digit:]]+\\.csv", full.names = TRUE) %>% 
-      vroom() %>% 
-      mutate_at(vars(mech_code, fy), as.character)
-    
-  #drop vars before merging
-    df_datim_wgts <- df_datim_wgts %>% 
-      select(-c(mer_results, mer_targets, operatingunit))
-    
-  #join to quarterly aggregation
-    df_q1 <- left_join(df_q1, df_datim_wgts)
-    
-  #join to period aggregation
-    df_pds <- left_join(df_pds, df_datim_wgts)
-    
-
-# QUARTERLY COMPLETENESS --------------------------------------------------
-
-    
-  #create flags for whether site reported HFR and if site exists in DATIM
-    df_q1 <- df_q1 %>% 
-      mutate(has_hfr_reporting = hfr_results > 0,
-             is_datim_site = mer_results > 0 | mer_targets > 0)
-  
-  #remove where HFR reporting against mech x site that does not have DATIM results/targets
-    df_q1 <- df_q1 %>% 
-      filter(!(has_hfr_reporting == TRUE & is_datim_site == FALSE))
-    
-  #mech x site completeness report
-    df_completeness <- df_q1 %>% 
-      filter_at(vars(hfr_results, mer_results, mer_targets), any_vars(.!=0)) %>% 
-      group_by(operatingunit, indicator) %>% 
-      summarise_at(vars(has_hfr_reporting, is_datim_site), sum, na.rm = TRUE) %>% 
-      ungroup() %>% 
-      mutate(completeness = case_when(is_datim_site >  0 ~ has_hfr_reporting / is_datim_site),
-             site_type = "All")
-             
-      # print(df_completeness, n = Inf)
-    
-  #mech x site completeness report for HV sites
-    df_completeness_imp <- df_q1 %>% 
-      filter_at(vars(hfr_results, mer_results, mer_targets), any_vars(.!=0)) %>% 
-      mutate(site_type = case_when(impflag_targets == 1 ~ "High Volume (Target)",
-                                   impflag_targets == 0 ~ "Low Volume (Target)")) %>% 
-      group_by(operatingunit, indicator, site_type) %>% 
-      summarise_at(vars(has_hfr_reporting, is_datim_site), sum, na.rm = TRUE) %>% 
-      ungroup() %>% 
-      mutate(completeness = case_when(is_datim_site >  0 ~ has_hfr_reporting / is_datim_site))
-             
-      # print(df_completeness_imp, n = Inf)
-    
-  #combine completeness for viz
-      df_completeness_viz <- df_completeness %>% 
-        bind_rows(df_completeness_imp) %>% 
-        select(site_type, everything())
-
-# PERIOD COMPLETENESS -----------------------------------------------------
-
-    #create flags for whether site reported HFR and if site exists in DATIM
-      df_pds <- df_pds %>% 
-        mutate(has_hfr_reporting = hfr_results > 0 ,
-               is_datim_site = mer_results > 0 | mer_targets > 0)
+    pd_agg <- function(df, rm_time_components){
       
-    #remove where HFR reporting against mech x site that does not have DATIM results/targets
-      df_pds <- df_pds %>% 
-        filter(!(has_hfr_reporting == TRUE & is_datim_site == FALSE))
+      #remove time componets for aggregation
+        df <- df %>% 
+          select(-all_of(rm_time_components))
+        
+      #create a period value for non-TX_CURR indicators
+        df_pd_sum <- df %>% 
+          filter(!indicator %in% c("TX_CURR", "TX_MMD"),
+                 type == "hfr_results") %>% 
+          group_by_if(is.character) %>% 
+          summarise(value = sum(value, na.rm = TRUE)) %>% 
+          ungroup()
+        
+      #create a period value for non-TX_CURR indicators
+        df_pd_max <- df %>% 
+          filter(indicator %in% c("TX_CURR", "TX_MMD") |
+                   type %in% c("mer_results", "mer_targets")) %>% 
+          group_by_if(is.character) %>% 
+          summarise_if(is.numeric, max, na.rm = TRUE) %>% 
+          ungroup()
+        
+      #join period dataset & respread
+        df_pd <- bind_rows(df_pd_sum, df_pd_max)  %>% 
+          spread(type, value, fill = 0)   #treat 0's as NA -> convert all NAs to 0
+        
+        return(df_pd)
+        
+    }
+    
+    
+  #merge on flags (02)
+    
+    merge_flags <- function(df){
       
-    #adjust period
-      df_pds <- df_pds %>% 
-        mutate(hfr_pd = paste0(fy, ".", str_pad(hfr_pd, 2, pad = "0")))
+      #import volume weighting
+        df_datim_wgts <- list.files(out_folder, "DATIM_FLAGS_[[:digit:]]+\\.csv", full.names = TRUE) %>% 
+          vroom(col_types = c(.default = "d",
+                              orgunituid = "c",
+                              indicator = "c",
+                              operatingunit = "c",
+                              mech_code = "c",
+                              fy = "c"))
       
-    #mech x site completeness report
-      df_completeness_pds <- df_pds %>% 
-        filter_at(vars(hfr_results, mer_results, mer_targets), any_vars(.!=0)) %>% 
-        group_by(operatingunit, hfr_pd, indicator) %>% 
-        summarise_at(vars(has_hfr_reporting, is_datim_site, mer_targets), sum, na.rm = TRUE) %>% 
-        ungroup() %>% 
-        mutate(completeness = case_when(is_datim_site >  0 ~ has_hfr_reporting / is_datim_site),
-               site_type = "All")
+      #drop vars before merging
+        df_datim_wgts <- df_datim_wgts %>% 
+          select(-c(mer_results, mer_targets, operatingunit))
       
-      # print(df_completeness_pds, n = Inf)
+      #join to pd aggregation
+        df_wgts <- left_join(df, df_datim_wgts, 
+                             by = c("orgunituid", "mech_code", "fy", "indicator"))
+        
+        return(df_wgts)
+        
+    }
+    
+    
+  #create completeness
+    
+    gen_completeness <- function(df, out_folder = NULL){
       
-    #mech x site completeness report for HV sites
-      df_completeness_pds_imp <- df_pds %>% 
-        filter_at(vars(hfr_results, mer_results, mer_targets), any_vars(.!=0)) %>% 
-        mutate(site_type = case_when(impflag_targets == 1 ~ "High Volume (Target)",
-                                     impflag_targets == 0 ~ "Low Volume (Target)")) %>% 
-        group_by(operatingunit, indicator, hfr_pd, site_type) %>% 
-        summarise_at(vars(has_hfr_reporting, is_datim_site, mer_targets), sum, na.rm = TRUE) %>% 
-        ungroup() %>% 
-        mutate(completeness = case_when(is_datim_site >  0 ~ has_hfr_reporting / is_datim_site))
+      #create flags for whether site reported HFR and if site exists in DATIM
+        df <- df %>% 
+          mutate(has_hfr_reporting = hfr_results > 0 ,
+                 is_datim_site = mer_results > 0 | mer_targets > 0)
       
-      # print(df_completeness_imp, n = Inf)
+      #remove where no DATIM results/targets and there is some value in the row
+        df <- df %>% 
+          filter(!(has_hfr_reporting == TRUE & is_datim_site == FALSE)) %>% 
+          filter_at(vars(hfr_results, mer_results, mer_targets), any_vars(.!=0))
       
-      #combine completeness for viz
-      df_completeness_pds_viz <- df_completeness_pds %>% 
-        bind_rows(df_completeness_pds_imp) %>% 
-        select(site_type, everything())       
+      #clean period name for viz later
+        if("hfr_pd" %in% names(df))
+          df <- mutate(df, hfr_pd = paste0(fy, ".", str_pad(hfr_pd, 2, pad = "0")))
+        
+      #export #1
+        type <- case_when("date" %in% names(df) ~ "Wks",
+                         "hfr_pd" %in% names(df) ~ "Pds",
+                         TRUE ~ "")
+        filename <- paste0("HFR_DATIM_FY20Q1_Agg", type, "_", format(Sys.Date(), "%Y%m%d"), ".csv")
+        if(!is.null(out_folder))
+          write_csv(df, file.path(out_folder, filename), na = "")
+      
+      #identify pd grouping vars
+        pd_grp <- intersect(c("hfr_pd", "date"), names(df))
+        grp_vars <- c("operatingunit", "indicator", "site_type", pd_grp)
+      
+      #aggregate across all sites
+        df_agg <- df %>% 
+          mutate(site_type = "All") %>% 
+          group_by_at(grp_vars) %>% 
+          summarise_at(vars(has_hfr_reporting, is_datim_site, mer_targets), sum, na.rm = TRUE) %>% 
+          ungroup()
+      
+      #aggregate by site volume
+        df_agg_vol <- df %>% 
+          mutate(site_type = case_when(impflag_targets == 1 ~ "High Volume (Target)",
+                                       impflag_targets == 0 ~ "Low Volume (Target)")) %>% 
+          group_by_at(grp_vars) %>%
+          summarise_at(vars(has_hfr_reporting, is_datim_site, mer_targets), sum, na.rm = TRUE) %>% 
+          ungroup() 
+        
+      #combine
+        df_agg <- df_agg %>% 
+          bind_rows(df_agg_vol) %>% 
+          select(site_type, everything()) 
+        
+      #create completeness
+        df_comp <- df_agg %>% 
+          mutate(completeness = case_when(is_datim_site >  0 ~ has_hfr_reporting / is_datim_site))
+        
+      #export #2
+        type <- ifelse(length(type) > 1, paste0("_", type), type)
+        comp_filename <- paste0("HFR_Completeness", type, "_",format(Sys.Date(), "%Y%m%d"), ".csv")
+        if(!is.null(out_folder))
+          write_csv(df, file.path(out_folder, comp_filename), na = "")
+        
+        return(df_comp)
+        
+    }
+
+
+# GENERATE VARIOUS DATASETS -----------------------------------------------
+
+    
+  #full quarter
+    df_q1 <- df_joint_lng %>% 
+      pd_agg(c("hfr_pd","date")) %>% 
+      merge_flags() %>% 
+      gen_completeness(out_folder)  
+    
+  #by pd
+    df_pds <- df_joint_lng %>% 
+      pd_agg(c("date")) %>% 
+      merge_flags() %>% 
+      gen_completeness(out_folder)  
+    
+  #by week
+    df_wks <- df_joint_lng %>% 
+      spread(type, value, fill = 0) %>% 
+      merge_flags() %>% 
+      gen_completeness(out_folder)
+    
+
+ 
 
 # EXPORT ------------------------------------------------------------------
     
-  #store file name
-    filename <- paste0("HFR_DATIM_FY20Q1_Agg_", format(Sys.Date(), "%Y%m%d"), ".csv")
-    filename_comp <- paste0("HFR_Completeness_", format(Sys.Date(), "%Y%m%d"), ".csv")
-    filename_pds <- paste0("HFR_DATIM_FY20Q1_AggPds_", format(Sys.Date(), "%Y%m%d"), ".csv")
-    filename_pds_comp <- paste0("HFR_Completeness_Pds_", format(Sys.Date(), "%Y%m%d"), ".csv")
-    
-  #save
-    write_csv(df_q1, file.path(out_folder, filename), na = "")
-    write_csv(df_completeness_viz, file.path(out_folder, filename_comp), na = "")
-    write_csv(df_pds, file.path(out_folder, filename_pds), na = "")
-    write_csv(df_completeness_pds_viz, file.path(out_folder, filename_pds_comp), na = "")
-      
+  #already completed in gen_completeness
     
     
