@@ -166,7 +166,7 @@ out_folder <- "Dataout"
         type <- ifelse(length(type) > 1, paste0("_", type), type)
         comp_filename <- paste0("HFR_Completeness", type, "_",format(Sys.Date(), "%Y%m%d"), ".csv")
         if(!is.null(out_folder))
-          write_csv(df, file.path(out_folder, comp_filename), na = "")
+          write_csv(df_comp, file.path(out_folder, comp_filename), na = "")
         
         return(df_comp)
         
