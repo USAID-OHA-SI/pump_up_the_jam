@@ -3,7 +3,7 @@
 ## LICENSE:  MIT
 ## PURPOSE:  viz completeness/correctness for FY20Q1 review
 ## DATE:     2020-03-27
-## UPDATED:  
+## UPDATED:  2020-03-28
 
 
 # DEPENDENCIES ------------------------------------------------------------
@@ -31,6 +31,7 @@ library(ggtext)
   
   blues <- c('#a6bddb','#74a9cf','#3690c0','#0570b0','#045a8d','#023858')
   blues_c <- colorRampPalette(blues)(30)
+  blues_d <- colorRampPalette(blues)(5)
   
   cb_bl <- c("#C7E9B4", "#7FCDBB", "#41B6C4", "#1D91C0", "#225EA8", "#0C2C84")
   cb_bl_c <- colorRampPalette(RColorBrewer::brewer.pal(9,"PuBu")[2:9])(30)
@@ -45,7 +46,7 @@ library(ggtext)
     df_q1 <- list.files(out_folder, "HFR_DATIM_FY20Q1_Agg_[[:digit:]]+\\.csv", full.names = TRUE) %>% 
       vroom()
   
-    df_pds_comp_gap <- list.files(out_folder, "HFR_OU_Pd_GapTarget_CompleteOnly_[[:digit:]]+\\.csv", full.names = TRUE) %>% 
+    df_wks_comp_gap <- list.files(out_folder, "HFR_OU_Wk_GapTarget_CompleteOnly_[[:digit:]]+\\.csv", full.names = TRUE) %>% 
       vroom()
 
 
@@ -92,7 +93,7 @@ library(ggtext)
 ## Gap target
     
   #clean up
-    df_gap <- df_pds_comp_gap %>% 
+    df_gap <- df_wks_comp_gap %>% 
       mutate(hfr_pd = as.character(hfr_pd),
              operatingunit = case_when(operatingunit == "Democratic Republic of the Congo" ~ "DRC",
                                               operatingunit == "Dominican Republic" ~ "DR",
@@ -159,21 +160,25 @@ library(ggtext)
   
     viz <- df_gap %>% 
       filter(indicator == {{ind}}) %>% 
-      ggplot(aes(hfr_pd, hfr_results)) +
-      geom_col(aes(hfr_pd, gap_target), fill = "#f3f3f3") +
-      geom_col(fill = color_bar2) +
+      ggplot(aes(date, hfr_results)) +
+      geom_col(aes(date, gap_target), fill = "#f3f3f3") +
+      geom_col(aes(fill = hfr_pd)) +
+      # geom_col(fill = color_bar2) +
       geom_hline(aes(yintercept = 0), color = "gray30") +
       geom_hline(aes(yintercept = gap_target), color = "#F5A65D", size = 0.75) +
       facet_wrap(~ fct_reorder(operatingunit, mer_targets, .desc = TRUE), scale = "free_y") +
       scale_y_continuous(label = comma) +
+      scale_x_date()+
+      scale_fill_manual(values = blues_d) +
       labs(x = NULL, y = NULL,
-           title = paste({{ind}}, "| HFR Results Against Period Gap Target"),
-           caption =  "Note: Gap Target = FY Target / 13 
+           title = paste({{ind}}, "| HFR Weekly Results Against Gap Target"),
+           caption =  "Note: Gap Target = FY Target / 52 
            Source: FY20Q1 MER + HFR") +
       theme(plot.title = element_text(face = "bold"),
             strip.text = element_text(face = "bold", hjust = 0),
             plot.caption = element_text(color = "gray30", face = "plain"),
             panel.grid = element_blank(),
+            legend.position = "none"
         
         )
     
@@ -204,7 +209,7 @@ library(ggtext)
 
 
   #test
-    plot_gap("HTS_TST")
+    plot_gap("HTS_TST_POS")
     
   #output for each ind
     walk(unique(df_gap$indicator),
