@@ -144,7 +144,7 @@ library(ggtext)
       
       if(!is.null(path_out)){
         ggsave(file.path(path_out, paste0("Q1Review_CC_", {{ind}}, ".png")), viz, 
-               dpi = 330, width = 10, height = 5.66, scale = 1.1)
+               dpi = 330, width = 10, height = 5.66)
       } else {
         return(viz)
       }
