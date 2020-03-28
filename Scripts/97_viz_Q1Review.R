@@ -26,7 +26,18 @@ library(ggtext)
   color_mechs <- "gray30" #"#C8C8C8"
 
   color_bar <- "#A7C6ED" #USAID Light Blue
+  color_bar2 <- "#74a9cf"
   color_target <- color_ou_avg
+  
+  blues <- c('#a6bddb','#74a9cf','#3690c0','#0570b0','#045a8d','#023858')
+  blues_c <- colorRampPalette(blues)(30)
+  
+  cb_bl <- c("#C7E9B4", "#7FCDBB", "#41B6C4", "#1D91C0", "#225EA8", "#0C2C84")
+  cb_bl_c <- colorRampPalette(RColorBrewer::brewer.pal(9,"PuBu")[2:9])(30)
+
+
+
+  
 
 # IMPORT ------------------------------------------------------------------
 
@@ -98,25 +109,42 @@ library(ggtext)
         mutate(ou_comp = case_when(measure == "completeness" ~ avg_ou),
                value_plot = ifelse(value > 1.5, 1.5, value)) %>% 
         ggplot(aes(value_plot, fct_reorder(operatingunit, ou_comp, sum, na.rm = TRUE))) +
+        geom_rect(aes(xmin = 1, xmax = Inf, ymin = -Inf, ymax = Inf),
+          fill = "#f6f6f6", alpha = 0.1) + 
         geom_vline(aes(xintercept = 0), color = "gray60") +
         geom_vline(aes(xintercept = 1), color = "gray60") +
-        geom_jitter(size = 3, color = color_mechs, alpha = .2, height = .1, na.rm = TRUE) +
-        geom_point(aes(avg_ou), color = color_ou_avg, size = 6.5, na.rm = TRUE) +
-        geom_text(aes(avg_ou, label = percent(avg_ou, 1)), size = 2, color = "white", na.rm = TRUE) +
-        scale_x_continuous(label = percent, limits = c(0, 1.5)) +
-        facet_grid(~ measure) +
+        #geom_jitter(size = 3, color = color_mechs, alpha = .1, height = .1, na.rm = TRUE) +
+        geom_jitter(aes(color = if_else(value_plot <= 1, value_plot, 1.9 - value_plot)), 
+          alpha = 0.2, size = 3, height = .1, na.rm = TRUE) +
+        geom_point(aes(avg_ou, fill = if_else(avg_ou <= 1, avg_ou, 1.9 - avg_ou)), 
+          shape = 21, colour = "white", size = 6.5, na.rm = TRUE) +
+        #geom_point(aes(avg_ou), color = color_ou_avg, size = 6.5, na.rm = TRUE) +
+        geom_text(aes(if_else(avg_ou > 0.80, avg_ou, NA_real_), label = percent(avg_ou, 1)), 
+          na.rm = TRUE, size = 2, colour = "white") +
+        scale_x_continuous(label = percent) +
+          scale_fill_gradientn(colours = cb_bl_c) +
+        scale_color_gradientn(colours = cb_bl_c) +
+        facet_wrap(~ measure, scales = "free_x") +
         labs(x = NULL, y = NULL,
              title = paste("Comparing", {{ind}}, "HFR Completeness and Correctness"),
              caption =  "Note: Correctness capped at 150%
            Source: FY20Q1 MER + HFR") +
         theme(plot.title = element_text(face = "bold"),
               strip.text = element_text(face = "bold"),
-              panel.border = element_rect(color = "gray30", fill = NA),
-              plot.caption = element_text(color = "gray30", face = "plain"))
+              #panel.border = element_rect(color = "gray30", fill = NA),
+              plot.caption = element_text(color = "gray30", face = "plain"),
+              legend.position = "none",
+          strip.text.x = element_text(hjust = 0),
+          axis.line = element_blank(),
+          panel.grid.minor.x = element_blank(), 
+          panel.border = element_blank(),
+          panel.background = element_blank(),
+          panel.spacing = unit(2, "lines")
+          )
       
       if(!is.null(path_out)){
         ggsave(file.path(path_out, paste0("Q1Review_CC_", {{ind}}, ".png")), viz, 
-               dpi = 330, width = 10, height = 5.66)
+               dpi = 330, width = 10, height = 5.66, scale = 1.1)
       } else {
         return(viz)
       }
@@ -132,9 +160,10 @@ library(ggtext)
     viz <- df_gap %>% 
       filter(indicator == {{ind}}) %>% 
       ggplot(aes(hfr_pd, hfr_results)) +
-      geom_col(fill = color_bar) +
+      geom_col(aes(hfr_pd, gap_target), fill = "#f3f3f3") +
+      geom_col(fill = color_bar2) +
       geom_hline(aes(yintercept = 0), color = "gray30") +
-      geom_hline(aes(yintercept = gap_target), color = color_target, size = 1.2) +
+      geom_hline(aes(yintercept = gap_target), color = "#F5A65D", size = 0.75) +
       facet_wrap(~ fct_reorder(operatingunit, mer_targets, .desc = TRUE), scale = "free_y") +
       scale_y_continuous(label = comma) +
       labs(x = NULL, y = NULL,
@@ -142,9 +171,11 @@ library(ggtext)
            caption =  "Note: Gap Target = FY Target / 13 
            Source: FY20Q1 MER + HFR") +
       theme(plot.title = element_text(face = "bold"),
-            strip.text = element_text(face = "bold"),
+            strip.text = element_text(face = "bold", hjust = 0),
             plot.caption = element_text(color = "gray30", face = "plain"),
-            panel.grid = element_blank())
+            panel.grid = element_blank(),
+        
+        )
     
     if(!is.null(path_out)){
       ggsave(file.path(path_out, paste0("Q1Review_Gap_", {{ind}}, ".png")), viz, 
@@ -163,7 +194,7 @@ library(ggtext)
 
 
   #test
-    plot_cc("HTS_TST")  
+    plot_cc("HTS_TST")
   
 
   #output for each ind
