@@ -48,6 +48,7 @@ library(ggtext)
   
     df_wks_comp_gap <- list.files(out_folder, "HFR_OU_Wk_GapTarget_CompleteOnly_[[:digit:]]+\\.csv", full.names = TRUE) %>% 
       vroom()
+    
 
 
 # MUNGE -------------------------------------------------------------------
@@ -94,11 +95,28 @@ library(ggtext)
     
   #clean up
     df_gap <- df_wks_comp_gap %>% 
+      filter(!indicator %in% c("TX_CURR", "TX_MMD")) %>% 
       mutate(hfr_pd = as.character(hfr_pd),
              operatingunit = case_when(operatingunit == "Democratic Republic of the Congo" ~ "DRC",
                                               operatingunit == "Dominican Republic" ~ "DR",
                                               operatingunit == "Western Hemisphere Region" ~ "WH Region",
                                               TRUE ~ operatingunit))
+    df_gap_pd <- df_wks_comp_gap %>% 
+      filter(indicator %in% c("TX_CURR", "TX_MMD")) %>% 
+      group_by(operatingunit, indicator, hfr_pd) %>% 
+      #summarise_at(vars(hfr_results, mer_targets, gap_target), max, na.rm = TRUE) %>% 
+      summarise(date = min(date, na.rm = TRUE),
+                hfr_results = max(hfr_results, na.rm = TRUE), 
+                mer_targets = max(mer_targets, na.rm = TRUE), 
+                gap_target = max(gap_target, na.rm = TRUE)) %>% 
+      ungroup() %>% 
+      mutate(hfr_pd = as.character(hfr_pd),
+             operatingunit = case_when(operatingunit == "Democratic Republic of the Congo" ~ "DRC",
+                                       operatingunit == "Dominican Republic" ~ "DR",
+                                       operatingunit == "Western Hemisphere Region" ~ "WH Region",
+                                       TRUE ~ operatingunit))
+    
+    df_gap <- bind_rows(df_gap, df_gap_pd)
 
 
 # CC PLOT FUNCTION --------------------------------------------------------
@@ -171,9 +189,11 @@ library(ggtext)
       scale_x_date()+
       scale_fill_manual(values = blues_d) +
       labs(x = NULL, y = NULL,
-           title = paste({{ind}}, "| HFR Weekly Results Against Gap Target"),
-           caption =  "Note: Gap Target = FY Target / 52 
-           Source: FY20Q1 MER + HFR") +
+           title = paste({{ind}}, "| HFR Weekly Results Against Target", 
+            ifelse({{ind}} %in% c("TX_CURR", "TX_MMD"), "", "Gap")),
+           caption =  paste0(ifelse({{ind}} %in% c("TX_CURR", "TX_MMD"), 
+                "Note: Target = FY Target", "Note: Gap Target = FY Target / 52"),
+           "\nSource: FY20Q1 MER + HFR")) +
       theme(plot.title = element_text(face = "bold"),
             strip.text = element_text(face = "bold", hjust = 0),
             plot.caption = element_text(color = "gray30", face = "plain"),
