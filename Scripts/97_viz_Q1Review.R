@@ -3,7 +3,7 @@
 ## LICENSE:  MIT
 ## PURPOSE:  viz completeness/correctness for FY20Q1 review
 ## DATE:     2020-03-27
-## UPDATED:  2020-03-28
+## UPDATED:  2020-04-01
 
 
 # DEPENDENCIES ------------------------------------------------------------
@@ -45,7 +45,7 @@ library(ggtext)
   #import
     df_q1 <- list.files(out_folder, "HFR_DATIM_FY20Q1_Agg_[[:digit:]]+\\.csv", full.names = TRUE) %>% 
       vroom()
-  
+    
     df_wks_comp_gap <- list.files(out_folder, "HFR_OU_Wk_GapTarget_CompleteOnly_[[:digit:]]+\\.csv", full.names = TRUE) %>% 
       vroom()
     
@@ -75,14 +75,28 @@ library(ggtext)
       spread(type, value)
   
   
-  #calc OU avg for eac indicator
-    df_cc_ou_avg <- df_cc_site %>% 
-      group_by(operatingunit, indicator, measure) %>% 
-      summarise(avg_ou = mean(value, na.rm = TRUE)) %>% 
-      ungroup() %>% 
-      filter(is.finite(avg_ou))
+  #OU completeness for each indicator
+    df_cc_ou <- df_q1 %>%
+      filter(!(has_hfr_reporting == TRUE & is_datim_site == FALSE)) %>% 
+      filter_at(vars(hfr_results, mer_results, mer_targets), any_vars(.!=0)) %>% 
+      group_by(operatingunit, indicator) %>%
+      summarise_at(vars(hfr_results, mer_results, mer_targets, has_hfr_reporting, is_datim_site), sum, na.rm = TRUE) %>%
+      ungroup() %>%
+      mutate(completeness_value = case_when(is_datim_site >  0 ~ has_hfr_reporting / is_datim_site),
+             completeness_dist = abs(1-completeness_value),
+             correctness_value = hfr_results/mer_results,
+             correctness_dist = abs(1-correctness_value))
     
-    df_cc_site <- bind_rows(df_cc_site, df_cc_ou_avg)
+    #reshape to get completeness/correctness in one col for plotting and value/dist as their own cols
+    df_cc_ou <- df_cc_ou %>% 
+      select(operatingunit, indicator, completeness_value:correctness_dist) %>% 
+      gather(type, value, -operatingunit, -indicator) %>% 
+      separate(type, c("measure", "type")) %>% 
+      spread(type, value) %>% 
+      rename_at(vars(dist, value), ~ paste0("ou_", .))
+
+    
+    df_cc_site <- bind_rows(df_cc_site, df_cc_ou)
   
   #clean up variable country
     df_cc_site <- df_cc_site %>% 
@@ -125,7 +139,7 @@ library(ggtext)
       
       viz <- df_cc_site %>% 
         filter(indicator == {{ind}}) %>% 
-        mutate(ou_comp = case_when(measure == "completeness" ~ avg_ou),
+        mutate(ou_comp = case_when(measure == "completeness" ~ ou_value),
                value_plot = ifelse(value > 1.5, 1.5, value)) %>% 
         ggplot(aes(value_plot, fct_reorder(operatingunit, ou_comp, sum, na.rm = TRUE))) +
         geom_rect(aes(xmin = 1, xmax = Inf, ymin = -Inf, ymax = Inf),
@@ -135,10 +149,10 @@ library(ggtext)
         #geom_jitter(size = 3, color = color_mechs, alpha = .1, height = .1, na.rm = TRUE) +
         geom_jitter(aes(color = if_else(value_plot <= 1, value_plot, 1.9 - value_plot)), 
           alpha = 0.2, size = 3, height = .1, na.rm = TRUE) +
-        geom_point(aes(avg_ou, fill = if_else(avg_ou <= 1, avg_ou, 1.9 - avg_ou)), 
+        geom_point(aes(ou_value, fill = if_else(ou_value <= 1, ou_value, 1.9 - ou_value)), 
           shape = 21, colour = "white", size = 6.5, na.rm = TRUE) +
-        #geom_point(aes(avg_ou), color = color_ou_avg, size = 6.5, na.rm = TRUE) +
-        geom_text(aes(if_else(avg_ou > 0.80, avg_ou, NA_real_), label = percent(avg_ou, 1)), 
+        #geom_point(aes(ou_value), color = color_ou_avg, size = 6.5, na.rm = TRUE) +
+        geom_text(aes(if_else(ou_value > 0.80, ou_value, NA_real_), label = percent(ou_value, 1)), 
           na.rm = TRUE, size = 2, colour = "white") +
         scale_x_continuous(label = percent) +
           scale_fill_gradientn(colours = cb_bl_c) +
