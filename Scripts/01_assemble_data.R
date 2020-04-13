@@ -3,7 +3,7 @@
 ## LICENSE:  MIT
 ## PURPOSE:  assemble MER and HFR data
 ## DATE:     2020-03-10
-## UPDATED:  2020-03-11
+## UPDATED:  2020-04-13
 
 
 # DEPENDENCIES ------------------------------------------------------------
@@ -36,10 +36,11 @@ library(Wavelength)
     df_datim <- map_dfr(.x = files,
                         .f = ~readr::read_csv(.x))
     
-  #fix TX_MMD "targets"
+  #fix TX_MMD "targets" --> set to Q1 results
     df_datim_mmd <- df_datim %>% 
       filter(indicator == "TX_CURR") %>% 
       mutate(indicator = "TX_MMD",
+             mer_targets = mer_results,
              mer_results = NA)
     
     df_datim <- bind_rows(df_datim, df_datim_mmd)
