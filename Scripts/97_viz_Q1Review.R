@@ -3,7 +3,7 @@
 ## LICENSE:  MIT
 ## PURPOSE:  viz completeness/correctness for FY20Q1 review
 ## DATE:     2020-03-27
-## UPDATED:  2020-04-01
+## UPDATED:  2020-04-13
 
 
 # DEPENDENCIES ------------------------------------------------------------
@@ -203,10 +203,13 @@ library(ggtext)
       scale_x_date()+
       scale_fill_manual(values = blues_d) +
       labs(x = NULL, y = NULL,
-           title = paste({{ind}}, "| HFR Weekly Results Against Target", 
-            ifelse({{ind}} %in% c("TX_CURR", "TX_MMD"), "", "Gap")),
-           caption =  paste0(ifelse({{ind}} %in% c("TX_CURR", "TX_MMD"), 
-                "Note: Target = FY Target", "Note: Gap Target = FY Target / 52"),
+           title = paste({{ind}}, "| HFR Results Against",
+                         ifelse({{ind}} == "TX_MMD", "FY20Q1 TX_CURR",  "MER Target"), 
+                         ifelse({{ind}} %in% c("TX_CURR", "TX_MMD"), "", "Gap")),
+           caption =  paste0(
+             case_when({{ind}} == "TX_MMD"  ~ "Note: Target = FY20Q1 TX_CURR",
+                       {{ind}} == "TX_CURR" ~ "Note: Target = FY Target",
+                       TRUE                 ~ "Note: Gap Target = FY Target / 52"),
            "\nSource: FY20Q1 MER + HFR")) +
       theme(plot.title = element_text(face = "bold"),
             strip.text = element_text(face = "bold", hjust = 0),
