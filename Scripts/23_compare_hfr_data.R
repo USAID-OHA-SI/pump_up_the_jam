@@ -104,7 +104,8 @@ library(ICPIutilities)
                                             "VMMC_CIRC", "PrEP_NEW")))
   #create a merged iso and mech name for plot
    df_hfr_pdagg <- df_hfr_pdagg %>% 
-     mutate(iso_mech = paste(iso, mech_code))
+     mutate(iso_mech = paste(iso, mech_code),
+            iso_mech = str_remove(iso_mech, "^NA "))
      
 
 # PLOT FUNCTION -----------------------------------------------------------
@@ -162,7 +163,7 @@ library(ICPIutilities)
 # CALCULATE COMPLETENESS --------------------------------------------------
 
    #create flags for whether site reported HFR and if site exists in DATIM
-     df_comp <- df_agg_ptnr %>% 
+     df_comp <- df_hfr_pdagg %>% 
        mutate(has_hfr_reporting_ptnr = hfr_results_ptnr > 0 ,
               has_hfr_reporting_ctry = hfr_results_ctry > 0 ,
               is_datim_site = mer_results > 0 | mer_targets > 0)
@@ -174,7 +175,7 @@ library(ICPIutilities)
      
    #aggregate to country x mech level
      df_comp <- df_comp %>% 
-       group_by(mech_code, partner, hfr_pd, indicator, mech_name, primepartner,
+       group_by(mech_code, sub_partner, hfr_pd, indicator, mech_name, primepartner,
                 countryname, iso, iso_mech) %>% 
        summarise_at(vars(has_hfr_reporting_ptnr, has_hfr_reporting_ctry, is_datim_site, mer_targets), sum, na.rm = TRUE) %>% 
        ungroup()
@@ -182,30 +183,56 @@ library(ICPIutilities)
   #calculate completeness
      df_comp <- df_comp %>% 
        mutate(completeness_ptnr = has_hfr_reporting_ptnr / is_datim_site,
-              completeness_ctry = has_hfr_reporting_ctry / is_datim_site)
+              completeness_ctry = has_hfr_reporting_ctry / is_datim_site) %>% 
+       mutate_at(vars(starts_with("completeness")), ~ ifelse(is.nan(.) | is.infinite(.), NA, .))
    
 
 # PLOT COMPLETENESS -------------------------------------------------------
 
-   df_comp %>% 
-     filter(partner == "Jhpiego") %>% 
-     ggplot(aes(hfr_pd, iso_mech, fill = completeness)) +
-     geom_tile(color = "white", size = 0.25) +
-     geom_text(aes(label = percent(completeness)),
-               size = 2.5, colour = "gray30", na.rm = TRUE) +
-     scale_fill_viridis_c(option = "A", direction = -1, labels = percent, end = 0.9, alpha = 0.85) +
-     facet_wrap(~ indicator, nrow = 1) +
-     labs(title = "COMPLETENESS TRENDS ACROSS ALL SITES",
-          subtitle = "FY20Q1 Site x Mechanism HFR Reporting Completeness by Period",
-          y = NULL, x = NULL, color = "Site Type",
-          caption = "Note: Completeness derived by comparing HFR reporting against sites with DATIM results/targets
-         Source: FY20Q1 MER + HFR",
-          fill = "Reporting completeness (100% = all sites reporting) ") +
-     theme_minimal() + 
-     coord_fixed(ratio = 1) +
-     theme(legend.position = "top",
-           legend.justification = c(0, 0),
-           panel.grid = element_blank(),
-           axis.text.x = element_text(size = 7),
-           strip.text = element_text(hjust = 0))
+   
+  plot_completeness <- function(ptnr, out_path = NULL){
+    plot <- df_comp %>% 
+      filter(sub_partner == ptnr) %>% 
+      ggplot(aes(hfr_pd, fct_reorder(iso_mech, mer_targets, sum), fill = completeness_ptnr)) +
+      geom_tile(color = "white", size = 0.25) +
+      geom_text(aes(label = percent(completeness_ptnr),
+                    color = ifelse(completeness_ptnr <=.6, "gray30", "white")),
+                size = 2.5, na.rm = TRUE) +
+      scale_fill_viridis_c(option = "A", direction = -1, labels = percent, 
+                           end = 0.9, alpha = 0.85, na.value = "gray80") +
+      scale_color_manual(values = c("gray30", "white"), guide = FALSE) +
+      facet_wrap(~ indicator, nrow = 1) +
+      labs(title = paste(toupper(ptnr), "COMPLETENESS TRENDS ACROSS ALL SITES"),
+           subtitle = "Site x Mechanism HFR Reporting Completeness by Period",
+           y = NULL, x = NULL, color = "Site Type",
+           caption = "Note: Completeness derived by comparing HFR reporting against sites with DATIM results/targets
+          Gray shaded boxes represent submissions that have no match in DATIM",
+           fill = "Reporting completeness (100% = all sites reporting) ") +
+      theme_minimal() + 
+      coord_fixed(ratio = 1) +
+      theme(legend.position = "top",
+            legend.justification = c(0, 0),
+            panel.grid = element_blank(),
+            axis.text.x = element_text(size = 7),
+            strip.text = element_text(hjust = 0))
+    
+    if(!is.null(out_path)){
+      filename <- paste0("HFR_Completeness_", ptnr, ".png")
+      ggsave(filename, path = out_path,
+             width = 10, height = 5.625, dpi = 300)
+    }
+    
+    return(plot)
+    
+  } 
+   
+     
+     ptnrs <- unique(df_comp$sub_partner)
+     
+    #test
+     plot_completeness(ptnrs[2])
+     
+    #scatter plots for each partner and pd
+     walk2(ptnr_tbl$sub_partner, ptnr_tbl$hfr_pd, 
+           plot_comparion, out_path ="Images")
    
