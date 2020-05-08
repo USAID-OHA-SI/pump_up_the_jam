@@ -60,6 +60,9 @@ library(tidylog, warn.conflicts = FALSE)
     df_datim_rpt <- map_dfr(.x = dates,
                             .f = ~mutate(df_datim, date = .x))
   
+  #change mech code to character
+    df_datim_rpt <- mutate(df_datim_rpt, mech_code = as.character(mech_code))
+    
   #remove files (just keep zipped folder)
     unlink(files)
     
@@ -69,26 +72,61 @@ library(tidylog, warn.conflicts = FALSE)
 
 # IMPORT + AGGREGATE HFR --------------------------------------------------
 
-  #import
-    df_hfr <- list.files(processed_folder, full.names = TRUE) %>% 
-      vroom::vroom(col_types = c(.default = "c"))
+  #import partner data 
+    df_hfr_ptnr <- list.files(processed_folder, full.names = TRUE) %>%
+      hfr_read()
       
+  #limit partner file to just HFR indicators
+    df_hfr_ptnr <- df_hfr_ptnr %>% 
+      filter(indicator %in% c("HTS_TST", "HTS_TST_POS",
+                              "TX_NEW", "PrEP_NEW",
+                              "VMMC_CIRC", "TX_CURR",
+                              "TX_MMD"))
+    
+  #identify partner to limit country file
+    partner_mechs <- unique(df_hfr_ptnr$mech_code)
+    
+  #grouping vars
+    grp_vars <- c("orgunituid", "mech_code", "fy", "date", "indicator")
+
   #aggregate after removing extra
-    df_hfr <- df_hfr %>% 
-      mutate(val = as.numeric(val)) %>% 
-      group_by(orgunituid, mech_code, fy, date, indicator) %>% 
-      summarise_at(vars(val), sum, na.rm = TRUE) %>% 
+    df_hfr_ptnr <- df_hfr_ptnr %>% 
+      group_by_at(vars(all_of(grp_vars))) %>% 
+      summarise(hfr_results_ptnr = sum(val, na.rm = TRUE)) %>% 
       ungroup()
     
-    partner_mechs <- unique(df_hfr$mech_code)
+    partner_mechs <- unique(df_hfr_ptnr$mech_code)
+    
+  #import country data
+    df_hfr_ctry <- file.path(datim_folder, "HFR_2020.07_Tableau_20200507.zip") %>% 
+      hfr_read()
+  
+  #filter country submitted data
+    df_hfr_ctry <- df_hfr_ctry %>% 
+      filter(mech_code %in% partner_mechs)
+    
+  #aggregate after removing extra
+    df_hfr_ctry <- df_hfr_ctry %>% 
+      group_by_at(vars(all_of(grp_vars))) %>% 
+      summarise(hfr_results_ctry = sum(val, na.rm = TRUE)) %>% 
+      ungroup()
+    
+  #remove SQL export NAs
+    df_hfr_ctry <- df_hfr_ctry %>% 
+      mutate_if(is.character, ~na_if(., "\\N"))
+    
     
 # MERGE HFR + DATIM -------------------------------------------------------
 
+    
+  #merge both HFR datasets
+    df_hfr <- df_hfr_ptnr %>% 
+      full_join(df_hfr_ctry, by = grp_vars)
+    
   #merge
     df_joint <- df_datim_rpt %>% 
       filter(mech_code %in% partner_mechs) %>% 
-      mutate_all(as.character) %>% 
-      full_join(df_hfr)
+      full_join(df_hfr, by = grp_vars)
     
   #make sure all have the HFR PD (missing for DATIM)
     df_joint <- df_joint %>% 
@@ -107,7 +145,7 @@ library(tidylog, warn.conflicts = FALSE)
       select(-level)
     
   #merge hierarchy onto joint file
-    df_joint <- left_join(df_joint, df_hierarchy)
+    df_joint <- left_join(df_joint, df_hierarchy, by = "orgunituid")
   
   #import mechanism info
     df_mech <- file.path(datim_folder, "HFR_FY20_GLOBAL_mechanisms_20200306.csv") %>% 
@@ -115,7 +153,7 @@ library(tidylog, warn.conflicts = FALSE)
       select(-operatingunit)
     
   #merge mech info onto joint file
-    df_joint <- left_join(df_joint, df_mech)
+    df_joint <- left_join(df_joint, df_mech, by = "mech_code")
         
   #arrange var order
     df_joint <- df_joint %>% 
@@ -123,12 +161,12 @@ library(tidylog, warn.conflicts = FALSE)
              fundingagency, mech_code, mech_name, primepartner,
              fy, hfr_pd, date, 
              indicator,
-             val, mer_results, mer_targets)
+             hfr_results_ptnr, hfr_results_ctry, mer_results, mer_targets)
 
 # EXPORT ------------------------------------------------------------------
 
   #store file name
-    filename <- paste0("HFR_PARTNER_FY20PD0407_", format(Sys.Date(), "%Y%m%d"), ".csv")
+    filename <- paste0("HFR_PARTNER_FY20PD0507_", format(Sys.Date(), "%Y%m%d"), ".csv")
   
   #save
     write_csv(df_joint, file.path(out_folder, filename), na = "")

@@ -3,7 +3,7 @@
 ## LICENSE:  MIT
 ## PURPOSE:  compare MER to Parnter HFR
 ## DATE:     2020-05-06
-## UPDATED:  
+## UPDATED:  2020-05-08
 
 
 # DEPENDENCIES ------------------------------------------------------------
@@ -26,58 +26,12 @@ library(ICPIutilities)
 # IMPORT ------------------------------------------------------------------
 
   #read partner data
-    df_ptnr <- list.files(out_folder, "HFR_PARTNER", full.names = TRUE) %>% 
-      hfr_read()
-  
-  #read country submissions
-    df_ctry <- file.path(data_folder, "HFR_2020.06_Tableau_20200427.zip") %>% 
+    df_full <- list.files(out_folder, "HFR_PARTNER", full.names = TRUE) %>% 
       hfr_read()
     
-  #list of mechs by each partner
-    df_ptnr_mechs <- read_csv("Dataout/HFR_CentralPartnerMechs.csv", 
-                              col_types = c(.default = "c"))
-    
 
-# FILTER ------------------------------------------------------------------
+# RESHAPE -----------------------------------------------------------------
 
-    
-  #limit partner file to just HFR indicators
-    df_ptnr <- df_ptnr %>% 
-      filter(indicator %in% c("HTS_TST", "HTS_TST_POS",
-                              "TX_NEW", "PrEP_NEW",
-                              "VMMC_CIRC", "TX_CURR",
-                              "TX_MMD"))
-    
-  #limit ctry file to just partners
-    partner_mechs <- unique(df_ptnr_mechs$mech_code)
-
-  #filter ctry dataset down to just reporting mechanism  
-  #TODO better filter method
-    df_ctry <- df_ctry %>% 
-      filter(mech_code %in% partner_mechs,
-             hfr_pd >=5)
-
-
-# CLEANING ----------------------------------------------------------------
-
-  #remove SQL export row breaks and NAs
-    df_ctry <- df_ctry %>% 
-      mutate(primepartner = str_remove(primepartner, "\r$")) %>% 
-      mutate_if(is.character, ~na_if(., "\\N"))
-    
-  #rename with source
-    df_ctry <- df_ctry %>% 
-      rename(hfr_results_ctry = val)
-    
-    df_ptnr <- df_ptnr %>% 
-      rename(hfr_results_ptnr = val)
-    
-
-# MERGE & RESHAPE ---------------------------------------------------------
-
-  
-  #append data
-    df_full <- bind_rows(df_ptnr,df_ctry)
   
   #reshape
     df_full_lng <- df_full %>% 
@@ -89,11 +43,11 @@ library(ICPIutilities)
 
 
   #aggregateion function
-    pd_agg <- function(df, rm_time_components){
+    pd_agg <- function(df, rm_time_components = NULL){
       
       #remove time componets for aggregation
-      df <- df %>% 
-        select(-all_of(rm_time_components))
+      if(!is.null(rm_time_components))
+        df <- select(df, -all_of(rm_time_components))
       
       #create a period value for non-TX_CURR indicators
       df_pd_sum <- df %>% 
