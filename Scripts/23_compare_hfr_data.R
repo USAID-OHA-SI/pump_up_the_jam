@@ -26,28 +26,28 @@ library(ICPIutilities)
 # IMPORT ------------------------------------------------------------------
 
   #read partner data
-    df_full <- list.files(out_folder, "HFR_PARTNER", full.names = TRUE) %>% 
-      hfr_read()
+    df_hfr <- list.files(out_folder, "HFR_PARTNER", full.names = TRUE) %>% 
+      hfr_read() %>% 
+      mutate_at(vars(starts_with("hfr_results")), as.double)
+  
+  #list of mechs by each partner
+    df_ptnr_mechs <- read_csv("Dataout/HFR_CentralPartnerMechs.csv", 
+                              col_types = c(.default = "c"))
     
 
-# RESHAPE -----------------------------------------------------------------
-
-  
-  #reshape
-    df_full_lng <- df_full %>% 
-      gather(type, value, hfr_results_ctry, hfr_results_ptnr, 
-             mer_results, mer_targets, na.rm = TRUE) 
-  
-
 # AGGREGATE ---------------------------------------------------------------
-
-
+  
   #aggregateion function
     pd_agg <- function(df, rm_time_components = NULL){
       
       #remove time componets for aggregation
       if(!is.null(rm_time_components))
         df <- select(df, -all_of(rm_time_components))
+      
+      #reshape
+      df <- df %>% 
+        gather(type, value, hfr_results_ctry, hfr_results_ptnr, 
+               mer_results, mer_targets, na.rm = TRUE) 
       
       #create a period value for non-TX_CURR indicators
       df_pd_sum <- df %>% 
@@ -74,41 +74,36 @@ library(ICPIutilities)
     }
   
   #aggreggate to HFR period
-   df_agg <- df_full_lng %>% 
-     mutate(hfr_pd = (2020 + (hfr_pd/100)) %>% as.character(.)) %>% 
-     select(orgunituid, mech_code, hfr_pd, date, indicator, type, value) %>% 
+   df_hfr_pdagg <- df_hfr %>% 
+     unite(hfr_pd, fy, hfr_pd, sep = ".0") %>% 
+    # select(orgunituid, mech_code, hfr_pd, date, indicator, type, value) %>% 
      pd_agg("date") 
    
-  #filter out blank lines
-   df_agg <- df_agg %>% 
-     filter_at(vars(starts_with("hfr_results")), any_vars(. != 0))
+  #filter out full blank lines
+   df_hfr_pdagg <- df_hfr_pdagg %>% 
+     filter_at(vars(starts_with("hfr_results"), starts_with("mer_")), any_vars(. != 0))
    
 
 # MERGING & VIZ SETUP -----------------------------------------------------
 
   #merge on partner name for grouping
-   df_agg_ptnr <- df_ptnr_mechs %>%
-     select(mech_code, partner) %>% 
+   df_hfr_pdagg <- df_ptnr_mechs %>%
+     select(mech_code, sub_partner = partner) %>% 
      distinct() %>% 
-     right_join(df_agg, by = "mech_code")
+     right_join(df_hfr_pdagg, by = "mech_code")
    
-  #mapping table for mech meta data & join
-    mapping <- df_ctry %>% 
-     distinct(mech_code, mech_name, primepartner, countryname) %>% 
-     filter(!is.na(countryname)) %>% 
-     distinct(mech_code, .keep_all = TRUE) %>% 
+  #map on iso code (from Wavelength)
+   df_hfr_pdagg <- df_hfr_pdagg %>% 
      left_join(iso_map, by = c("countryname" = "operatingunit")) %>% 
      select(-regional)
    
-    df_agg_ptnr <- left_join(df_agg_ptnr, mapping, by = "mech_code")
-   
   #order indicators
-   df_agg_ptnr <- df_agg_ptnr %>% 
+   df_hfr_pdagg <- df_hfr_pdagg %>% 
      mutate(indicator = factor(indicator, c("HTS_TST", "HTS_TST_POS",
                                             "TX_NEW", "TX_CURR", "TX_MMD",
                                             "VMMC_CIRC", "PrEP_NEW")))
   #create a merged iso and mech name for plot
-   df_agg_ptnr <- df_agg_ptnr %>% 
+   df_hfr_pdagg <- df_hfr_pdagg %>% 
      mutate(iso_mech = paste(iso, mech_code))
      
 
@@ -116,9 +111,9 @@ library(ICPIutilities)
 
    plot_comparion <- function(ptnr, pd, out_path = NULL){
      
-     plot <- df_agg_ptnr %>%
-       filter(hfr_pd == "2020.06",
-              partner == "Jhpiego") %>% 
+     plot <- df_hfr_pdagg %>%
+       filter(hfr_pd == pd,
+              sub_partner == ptnr) %>% 
        ggplot(aes(hfr_results_ptnr, hfr_results_ctry, color = indicator)) +
        geom_hline(aes(yintercept = 0)) +
        geom_vline(aes(xintercept = 0)) +
@@ -154,13 +149,13 @@ library(ICPIutilities)
 # PLOT COMPARISON SCATTER PLOTS -------------------------------------------
 
   #distinct list of partners & periods   
-    ptnr_tbl <- distinct(df_agg_ptnr, partner, hfr_pd)
+    ptnr_tbl <- distinct(df_hfr_pdagg, sub_partner, hfr_pd)
    
   #test
-   # plot_comparion(ptnr_tbl$partner[1], ptnr_tbl$hfr_pd[1], "Images")
+   # plot_comparion(ptnr_tbl$sub_partner[1], ptnr_tbl$hfr_pd[1], "Images")
   
   #scatter plots for each partner and pd
-    walk2(ptnr_tbl$partner, ptnr_tbl$hfr_pd, 
+    walk2(ptnr_tbl$sub_partner, ptnr_tbl$hfr_pd, 
           plot_comparion, out_path ="Images")
    
 
