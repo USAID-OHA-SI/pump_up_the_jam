@@ -3,7 +3,7 @@
 ## LICENSE:  MIT
 ## PURPOSE:  assemble MER and Partner HFR data
 ## DATE:     2020-05-06
-## UPDATED:  
+## UPDATED:  2020-05-08
 
 
 # DEPENDENCIES ------------------------------------------------------------
@@ -12,6 +12,7 @@ library(tidyverse)
 library(vroom)
 library(lubridate)
 library(Wavelength)
+library(tidylog, warn.conflicts = FALSE)
 
 
 # GLOBAL VARIABLES --------------------------------------------------------
