@@ -63,6 +63,9 @@ library(tidylog, warn.conflicts = FALSE)
   #change mech code to character
     df_datim_rpt <- mutate(df_datim_rpt, mech_code = as.character(mech_code))
     
+  #add otherdisaggregate for MMD
+    df_datim_rpt <- mutate(df_datim_rpt, otherdisaggregate = NA_character_)
+    
   #remove files (just keep zipped folder)
     unlink(files)
     
@@ -86,16 +89,29 @@ library(tidylog, warn.conflicts = FALSE)
   #identify partner to limit country file
     partner_mechs <- unique(df_hfr_ptnr$mech_code)
     
+  #cleanup capture both under/over 3mo MMD as well as total
+    df_hfr_ptnr <- df_hfr_ptnr %>% 
+      mutate(otherdisaggregate = case_when(otherdisaggregate == "<3 months" ~ "<3 months",
+                                           otherdisaggregate %in% c("3-5 months", "6 months or more") ~ "+3 months"))
+
+    mmd_grp <- setdiff(names(df_hfr_ptnr), c("otherdisaggregate", "val"))
+            
+    df_mmd_ptnr <- df_hfr_ptnr %>% 
+      filter(!is.na(otherdisaggregate)) %>% 
+      group_by_at(vars(all_of(mmd_grp))) %>% 
+      summarise_at(vars(val), sum, na.rm = TRUE) %>% 
+      ungroup()
+    
+    df_hfr_ptnr <- bind_rows(df_hfr_ptnr, df_mmd_ptnr)
+      
   #grouping vars
-    grp_vars <- c("orgunituid", "mech_code", "fy", "date", "indicator")
+    grp_vars <- c("orgunituid", "mech_code", "fy", "date", "indicator", "otherdisaggregate")
 
   #aggregate after removing extra
     df_hfr_ptnr <- df_hfr_ptnr %>% 
       group_by_at(vars(all_of(grp_vars))) %>% 
       summarise(hfr_results_ptnr = sum(val, na.rm = TRUE)) %>% 
       ungroup()
-    
-    partner_mechs <- unique(df_hfr_ptnr$mech_code)
     
   #import country data
     df_hfr_ctry <- file.path(datim_folder, "HFR_2020.07_Tableau_20200507.zip") %>% 
@@ -104,6 +120,21 @@ library(tidylog, warn.conflicts = FALSE)
   #filter country submitted data
     df_hfr_ctry <- df_hfr_ctry %>% 
       filter(mech_code %in% partner_mechs)
+    
+  #cleanup other disaggregate
+    df_hfr_ctry <- df_hfr_ctry %>% 
+      mutate(otherdisaggregate = case_when(otherdisaggregate %in% c("<3 months", "<3months") ~ "<3 months",
+                                            otherdisaggregate %in% c("3-5 months", "6months","6 months or more") ~ "+3 months"))
+    
+    mmd_grp <- setdiff(names(df_hfr_ctry), c("otherdisaggregate", "val"))
+    
+    df_mmd_ctry <- df_hfr_ctry %>% 
+      filter(!is.na(otherdisaggregate)) %>% 
+      group_by_at(vars(all_of(mmd_grp))) %>% 
+      summarise_at(vars(val), sum, na.rm = TRUE) %>% 
+      ungroup()
+    
+    df_hfr_ctry <- bind_rows(df_hfr_ctry, df_mmd_ctry)
     
   #aggregate after removing extra
     df_hfr_ctry <- df_hfr_ctry %>% 
@@ -160,7 +191,7 @@ library(tidylog, warn.conflicts = FALSE)
       select(operatingunit:facility, orgunit, orgunituid, latitude, longitude,
              fundingagency, mech_code, mech_name, primepartner,
              fy, hfr_pd, date, 
-             indicator,
+             indicator, otherdisaggregate,
              hfr_results_ptnr, hfr_results_ctry, mer_results, mer_targets)
 
 # EXPORT ------------------------------------------------------------------
