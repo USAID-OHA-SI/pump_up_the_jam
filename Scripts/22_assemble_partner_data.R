@@ -3,7 +3,7 @@
 ## LICENSE:  MIT
 ## PURPOSE:  assemble MER and Partner HFR data
 ## DATE:     2020-05-06
-## UPDATED:  2020-05-08
+## UPDATED:  2020-05-09
 
 
 # DEPENDENCIES ------------------------------------------------------------
@@ -193,6 +193,32 @@ library(tidylog, warn.conflicts = FALSE)
              fy, hfr_pd, date, 
              indicator, otherdisaggregate,
              hfr_results_ptnr, hfr_results_ctry, mer_results, mer_targets)
+    
+  #fix orphan OUs b/c of inaccurate/missing UIDS
+    df_mech_ou <- read_csv("https://www.datim.org/api/sqlViews/fgUtV6e9YIX/data.csv") 
+    
+    df_joint <- df_mech_ou %>% 
+      select(mech_code = code, ou) %>% 
+      left_join(df_joint, ., by = "mech_code") 
+      
+    df_joint <- df_joint %>% 
+      mutate(operatingunit = ifelse(is.na(operatingunit), ou, operatingunit)) %>% 
+      select(-ou)
+    
+  #map on iso codes (from Wavelength)
+    df_joint <- df_joint %>% 
+      left_join(iso_map, by = "operatingunit") %>% 
+      select(-regional) %>% 
+      rename(iso_ou = iso)
+    
+    df_joint <- df_joint %>% 
+      left_join(iso_map, by =  c("countryname" = "operatingunit")) %>% 
+      select(-regional) %>% 
+      rename(iso_ctry = iso)
+    
+    df_joint <- df_joint %>% 
+      select(operatingunit, countryname, iso_ou, iso_ctry, everything())
+    
 
 # EXPORT ------------------------------------------------------------------
 
