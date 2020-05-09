@@ -22,7 +22,7 @@ library(Wavelength)
     if(!dir.exists(sub_folder)){
       dir.create(sub_folder, showWarnings = FALSE)
       
-      unzip("Data/HFR_Partner_2020.04through2020.07.zip",
+      unzip("Data/HFR_Partner_2020.05through2020.07.zip",
             exdir = sub_folder)
     }
   
