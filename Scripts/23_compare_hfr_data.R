@@ -16,13 +16,36 @@ library(glitr)
 library(scales)
 library(extrafont)
 library(ICPIutilities)
+library(RColorBrewer)
 
 # GLOBAL VARIABLES --------------------------------------------------------
 
   data_folder <- "Data"
   out_folder <- "Dataout"
+  
+  # paste(c("HTS_TST", "HTS_TST_POS", "TX_NEW", "TX_CURR", "TX_MMD", "VMMC_CIRC", "PrEP_NEW"), "=",
+  #       RColorBrewer::brewer.pal(7, "Dark2"))
+
+  pal <- c("HTS_TST" = "#1B9E77", "HTS_TST_POS" = "#D95F02", "TX_NEW" = "#7570B3", 
+           "TX_CURR" = "#E7298A", "TX_MMD" = "#66A61E", "VMMC_CIRC" = "#E6AB02", 
+           "PrEP_NEW" = "#A6761D")
+  
+  # paste((1:12), '=', viridis_pal(direction = -1)(12))
+  heatmap_pal <- c("1"  = "#FDE725FF",
+                   "2"  = "#C2DF23FF",
+                   "3"  = "#85D54AFF",
+                   "4"  = "#51C56AFF",
+                   "5"  = "#2BB07FFF",
+                   "6"  = "#1E9B8AFF",
+                   "7"  = "#25858EFF",
+                   "8"  = "#2D708EFF",
+                   "9"  = "#38598CFF",
+                   "10" = "#433E85FF",
+                   "11" = "#482173FF",
+                   "12" = "#440154FF")
 
 
+  
 # IMPORT ------------------------------------------------------------------
 
   #read partner data
@@ -40,9 +63,14 @@ library(ICPIutilities)
   #aggregateion function
     pd_agg <- function(df, rm_time_components = NULL){
       
-      #remove time componets for aggregation
+      #remove time components for aggregation
       if(!is.null(rm_time_components))
         df <- select(df, -all_of(rm_time_components))
+      
+      #remove MMD disaggs, just keeping total
+      df <- df %>% 
+        filter(is.na(otherdisaggregate)) %>% 
+        select(-otherdisaggregate)
       
       #reshape
       df <- df %>% 
@@ -76,7 +104,6 @@ library(ICPIutilities)
   #aggreggate to HFR period
    df_hfr_pdagg <- df_hfr %>% 
      unite(hfr_pd, fy, hfr_pd, sep = ".0") %>% 
-    # select(orgunituid, mech_code, hfr_pd, date, indicator, type, value) %>% 
      pd_agg("date") 
    
   #filter out full blank lines
@@ -185,22 +212,27 @@ library(ICPIutilities)
        mutate(completeness_ptnr = has_hfr_reporting_ptnr / is_datim_site,
               completeness_ctry = has_hfr_reporting_ctry / is_datim_site) %>% 
        mutate_at(vars(starts_with("completeness")), ~ ifelse(is.nan(.) | is.infinite(.), NA, .))
-   
-
+     
+  #bands
+     df_comp <- df_comp %>% 
+       mutate(completeness_band = case_when(completeness_ptnr ==0 ~ 1,
+                                            completeness_ptnr <= 1 ~ round(completeness_ptnr/.1, 0),
+                                            !is.na(completeness_ptnr) ~ 12),
+              completeness_band = as.character(completeness_band))
+       
 # PLOT COMPLETENESS -------------------------------------------------------
 
    
   plot_completeness <- function(ptnr, out_path = NULL){
     plot <- df_comp %>% 
       filter(sub_partner == ptnr) %>% 
-      ggplot(aes(hfr_pd, fct_reorder(iso_mech, mer_targets, sum), fill = completeness_ptnr)) +
+      ggplot(aes(hfr_pd, fct_reorder(iso_mech, mer_targets, sum), fill = completeness_band)) +
       geom_tile(color = "white", size = 0.25) +
       geom_text(aes(label = percent(completeness_ptnr),
-                    color = ifelse(completeness_ptnr <=.6, "gray30", "white")),
+                    color = ifelse(completeness_band <= 1, "dark", "light")),
                 size = 2.5, na.rm = TRUE) +
-      scale_fill_viridis_c(option = "A", direction = -1, labels = percent, 
-                           end = 0.9, alpha = 0.85, na.value = "gray80") +
-      scale_color_manual(values = c("gray30", "white"), guide = FALSE) +
+      scale_fill_manual(values = heatmap_pal, na.value = "gray80") +
+      scale_color_manual(values = c("dark" = "gray30", "light" = "white"), guide = FALSE) +
       facet_wrap(~ indicator, nrow = 1) +
       labs(title = paste(toupper(ptnr), "COMPLETENESS TRENDS ACROSS ALL SITES"),
            subtitle = "Site x Mechanism HFR Reporting Completeness by Period",
@@ -210,7 +242,7 @@ library(ICPIutilities)
            fill = "Reporting completeness (100% = all sites reporting) ") +
       theme_minimal() + 
       coord_fixed(ratio = 1) +
-      theme(legend.position = "top",
+      theme(legend.position = "none",
             legend.justification = c(0, 0),
             panel.grid = element_blank(),
             axis.text.x = element_text(size = 7),
@@ -230,7 +262,7 @@ library(ICPIutilities)
      ptnrs <- unique(df_comp$sub_partner)
      
     #test
-     plot_completeness(ptnrs[2])
+     plot_completeness(ptnrs[4])
      
     #scatter plots for each partner and pd
      walk2(ptnr_tbl$sub_partner, ptnr_tbl$hfr_pd, 

@@ -220,6 +220,15 @@ library(tidylog, warn.conflicts = FALSE)
       select(operatingunit, countryname, iso_ou, iso_ctry, everything())
     
 
+  #add in submission partner info
+    df_ptnr_mechs <- read_csv("Dataout/HFR_CentralPartnerMechs.csv", 
+                              col_types = c(.default = "c"))
+    
+    df_joint <- df_ptnr_mechs %>% 
+      distinct(sub_partner = partner, mech_code) %>% 
+      left_join(df_joint, ., by = "mech_code")
+      
+  
 # EXPORT ------------------------------------------------------------------
 
   #store file name
