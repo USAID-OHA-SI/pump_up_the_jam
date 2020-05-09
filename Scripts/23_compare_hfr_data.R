@@ -26,11 +26,8 @@ library(patchwork)
   
   ind_order <- c("HTS_TST", "HTS_TST_POS", "TX_NEW", "TX_CURR", "TX_MMD",
                  "VMMC_CIRC", "PrEP_NEW")
-  # paste(ind_order, "=", RColorBrewer::brewer.pal(7, "Dark2"))
-  pal <- c("HTS_TST" = "#1B9E77", "HTS_TST_POS" = "#D95F02", "TX_NEW" = "#7570B3", 
-           "TX_CURR" = "#E7298A", "TX_MMD" = "#66A61E", "VMMC_CIRC" = "#E6AB02", 
-           "PrEP_NEW" = "#A6761D")
-  paste(ind_order, "=", viridis_pal(direction = -1, end = .85)(7))
+
+  # paste(ind_order, "=", viridis_pal(direction = -1, end = .85)(7))
   pal <- c("HTS_TST" = "#9AD93CFF", "HTS_TST_POS" = "#47C16EFF", 
            "TX_NEW" = "#1FA188FF", "TX_CURR" = "#277E8EFF", 
            "TX_MMD" = "#375B8DFF", "VMMC_CIRC" = "#46327EFF", 
