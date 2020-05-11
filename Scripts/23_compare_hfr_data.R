@@ -318,7 +318,7 @@ library(patchwork)
          ggplot(aes(date, hfr_results_ptnr)) +
          geom_point(aes(y = point), color = "gray80", na.rm = TRUE) +
          geom_path(aes(group = iso_mech), na.rm = TRUE, size = .9, color = "gray80") +
-         geom_smooth(method = "loess", formula = "y ~ x", se = FALSE, na.rm = TRUE, size = 1.5, color = "#440154FF") +
+         geom_smooth(aes(weight = mer_targets), method = "loess", formula = "y ~ x", se = FALSE, na.rm = TRUE, size = 1.5, color = "#440154FF") +
          geom_hline(aes(yintercept = 0)) +
          facet_wrap(~indicator, nrow = 1) +
          labs(x = NULL, y = NULL) +
@@ -334,7 +334,7 @@ library(patchwork)
          ggplot(aes(date, hfr_results_ptnr)) +
          geom_point(aes(y = point), color = "gray80", na.rm = TRUE) +
          geom_path(aes(group = iso_mech), na.rm = TRUE, size = .9, color = "gray80") +
-         geom_smooth(method = "loess", formula = "y ~ x", se = FALSE, na.rm = TRUE, size = 1.5, color = "#440154FF") +
+         geom_smooth(aes(weight = mer_targets), method = "loess", formula = "y ~ x", se = FALSE, na.rm = TRUE, size = 1.5, color = "#440154FF") +
          geom_hline(aes(yintercept = 0)) +
          facet_wrap(~indicator, scales = "free_y", nrow = 1) +
          labs(x = NULL, y = NULL) +
@@ -364,7 +364,7 @@ library(patchwork)
          ggplot(aes(date, hfr_results_ptnr)) +
          geom_point(aes(y = point), color = "gray80", na.rm = TRUE) +
          geom_path(aes(group = iso_mech), na.rm = TRUE, size = .9, color = "gray80") +
-         geom_smooth(se = FALSE, na.rm = TRUE, size = 1.5, color = "#440154FF") +
+         geom_smooth(aes(weight = mer_targets), se = FALSE, na.rm = TRUE, size = 1.5, color = "#440154FF") +
          geom_hline(aes(yintercept = 0)) +
          facet_wrap(~indicator, nrow = 1) +
          labs(x = NULL, y = NULL) +
@@ -381,7 +381,7 @@ library(patchwork)
          ggplot(aes(date, hfr_results_ptnr)) +
          geom_point(aes(y = point), color = "gray80", na.rm = TRUE) +
          geom_path(aes(group = iso_mech), na.rm = TRUE, size = .9, color = "gray80") +
-         geom_smooth(se = FALSE, na.rm = TRUE, size = 1.5, color = "#440154FF") +
+         geom_smooth(aes(weight = mer_targets), se = FALSE, na.rm = TRUE, size = 1.5, color = "#440154FF") +
          geom_hline(aes(yintercept = 0)) +
          facet_wrap(~indicator, nrow = 1) +
          labs(x = NULL, y = NULL) +
