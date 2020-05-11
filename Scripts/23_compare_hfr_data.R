@@ -3,7 +3,7 @@
 ## LICENSE:  MIT
 ## PURPOSE:  compare MER to Partner HFR
 ## DATE:     2020-05-06
-## UPDATED:  2020-05-09
+## UPDATED:  2020-05-11
 
 
 # DEPENDENCIES ------------------------------------------------------------
@@ -157,6 +157,7 @@ library(patchwork)
   #distinct list of partners & periods   
     ptnr_tbl <- df_hfr_pdagg %>% 
      distinct(sub_partner, hfr_pd) %>% 
+     filter(hfr_pd == "2020.06") %>% 
      arrange(sub_partner)
    
    partners <- unique(ptnr_tbl$sub_partner)
