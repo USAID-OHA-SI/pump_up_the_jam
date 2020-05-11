@@ -282,7 +282,8 @@ library(patchwork)
        ungroup() %>% 
        mutate(indicator = factor(indicator, wkly_ind)) %>%
        group_by(indicator, iso_mech) %>% 
-       mutate(point = case_when(date %in% c(max(date), min(date)) ~ hfr_results_ptnr)) %>% 
+       mutate(point = case_when(date %in% c(max(date), min(date)) ~ hfr_results_ptnr),
+              iso_lab = case_when(date == max(date) ~ iso_mech)) %>% 
        ungroup() %>% 
        complete(date, nesting(sub_partner, indicator)) %>% 
        arrange(sub_partner, iso_mech, indicator, date)
@@ -294,32 +295,47 @@ library(patchwork)
        summarise(date = min(date)) %>% 
        ungroup()
      
-    #trends in TX_CURR and MMD (3+ mo)
-     df_trends_txcurr <- df_hfr %>% 
-       filter(indicator == "TX_CURR" | 
-                (indicator == "TX_MMD" & otherdisaggregate == "+3 months")) %>%
-       mutate(iso_mech = paste(iso_ou, mech_code),
-              iso_mech = str_remove(iso_mech, "^NA ")) %>%
-       group_by_at(vars(all_of(trends_grp), hfr_pd)) %>% 
-       summarise_if(is_double, sum, na.rm = TRUE) %>% 
-       ungroup() %>%
-       select(-date) %>% 
-       group_by_at(vars(all_of(trends_grp_pd))) %>% 
-       summarise_if(is_double, max, na.rm = TRUE) %>% 
-       ungroup() %>%
-       select(-c(starts_with("mer_"), hfr_results_ctry)) %>% 
-       filter(hfr_results_ptnr > 0) %>%
-       left_join(pd_dates, by = "hfr_pd") %>% 
-       spread(indicator, hfr_results_ptnr, fill = 0) %>% 
-       mutate(`+3 Months MMD (% of TX_CURR)` = TX_MMD / TX_CURR,
-              hfr_pd = paste0("2020.0", hfr_pd)) %>% 
-       gather(indicator, hfr_results_ptnr, -sub_partner, -hfr_pd, -iso_mech, -date) %>% 
-       group_by(indicator, iso_mech) %>% 
-       mutate(point = case_when(hfr_pd %in% c(max(hfr_pd), min(hfr_pd)) ~ hfr_results_ptnr)) %>% 
-       ungroup() %>%
-       complete(hfr_pd, nesting(sub_partner, indicator)) %>% 
-       arrange(sub_partner, iso_mech, indicator, hfr_pd)
-     
+  #trends in TX_CURR and MMD (3+ mo)
+   df_trends_txcurr <- df_hfr %>% 
+     filter(indicator == "TX_CURR" | 
+              (indicator == "TX_MMD" & otherdisaggregate == "+3 months")) %>%
+     mutate(iso_mech = paste(iso_ou, mech_code),
+            iso_mech = str_remove(iso_mech, "^NA ")) %>%
+     group_by_at(vars(all_of(trends_grp), hfr_pd)) %>% 
+     summarise_if(is_double, sum, na.rm = TRUE) %>% 
+     ungroup() %>%
+     select(-date) %>% 
+     group_by_at(vars(all_of(trends_grp_pd))) %>% 
+     summarise_if(is_double, max, na.rm = TRUE) %>% 
+     ungroup() %>%
+     select(-c(starts_with("mer_"), hfr_results_ctry)) %>% 
+     filter(hfr_results_ptnr > 0) %>%
+     left_join(pd_dates, by = "hfr_pd") %>% 
+     spread(indicator, hfr_results_ptnr, fill = 0) %>% 
+     mutate(`+3 Months MMD (% of TX_CURR)` = TX_MMD / TX_CURR,
+            hfr_pd = paste0("2020.0", hfr_pd)) %>% 
+     gather(indicator, hfr_results_ptnr, -sub_partner, -hfr_pd, -iso_mech, -date) %>% 
+     group_by(indicator, iso_mech) %>% 
+     mutate(point = case_when(hfr_pd %in% c(max(hfr_pd), min(hfr_pd)) ~ hfr_results_ptnr),
+            iso_lab = case_when(date == max(date) ~ iso_mech)) %>% 
+     ungroup() %>%
+     complete(hfr_pd, nesting(sub_partner, indicator)) %>% 
+     arrange(sub_partner, iso_mech, indicator, hfr_pd)
+   
+  #TX_CURR targets for weighted Loess
+   df_tx_targets <-   df_hfr %>% 
+     filter(indicator == "TX_CURR",
+            !mer_targets %in% c(NA, 0),
+            date == min(date)) %>% 
+     mutate(iso_mech = paste(iso_ou, mech_code),
+            iso_mech = str_remove(iso_mech, "^NA ")) %>% 
+     group_by(sub_partner, iso_mech) %>% 
+     summarise_at(vars(mer_targets), sum, na.rm = TRUE) %>% 
+     ungroup()
+   
+   df_trends_txcurr <- df_trends_txcurr %>% 
+     left_join(df_tx_targets, by = c("sub_partner", "iso_mech"))
+   
 # FUNCTION - PLOT TRENDS --------------------------------------------------
 
      plot_wklytrends <- function(ptnr, out_path = NULL) {
@@ -330,12 +346,15 @@ library(patchwork)
          ggplot(aes(date, hfr_results_ptnr)) +
          geom_point(aes(y = point), color = "gray80", na.rm = TRUE) +
          geom_path(aes(group = iso_mech), na.rm = TRUE, size = .9, color = "gray80") +
+         geom_text(aes(label = iso_lab), color = "gray70", size = 2,
+                   hjust = -.2, family = "Source Sans Pro", na.rm = TRUE) +
          geom_smooth(aes(weight = mer_targets), method = "loess", formula = "y ~ x", se = FALSE, na.rm = TRUE, size = 1.5, color = "#440154FF") +
          geom_hline(aes(yintercept = 0)) +
          facet_wrap(~indicator, nrow = 1) +
          labs(x = NULL, y = NULL) +
          scale_y_continuous(labels = comma) +
-         scale_x_date(breaks = as.Date(c("2020-01-20", "2020-02-17", "2020-03-16")),
+         scale_x_date(breaks = as.Date(c("2020-01-20", "2020-02-17", "2020-03-16", "2020-04-06")),
+                      limits = as.Date(c("2020-01-20", "2020-04-24")),
                       date_labels = "%b %d") +
          si_style_ygrid() +
          theme(legend.position = "none")
@@ -346,12 +365,15 @@ library(patchwork)
          ggplot(aes(date, hfr_results_ptnr)) +
          geom_point(aes(y = point), color = "gray80", na.rm = TRUE) +
          geom_path(aes(group = iso_mech), na.rm = TRUE, size = .9, color = "gray80") +
+         geom_text(aes(label = iso_lab), color = "gray70", size = 2,
+                   hjust = -.2, family = "Source Sans Pro", na.rm = TRUE) +
          geom_smooth(aes(weight = mer_targets), method = "loess", formula = "y ~ x", se = FALSE, na.rm = TRUE, size = 1.5, color = "#440154FF") +
          geom_hline(aes(yintercept = 0)) +
          facet_wrap(~indicator, scales = "free_y", nrow = 1) +
          labs(x = NULL, y = NULL) +
          scale_y_continuous(labels = comma) +
-         scale_x_date(breaks = as.Date(c("2020-01-20", "2020-02-17", "2020-03-16")),
+         scale_x_date(breaks = as.Date(c("2020-01-20", "2020-02-17", "2020-03-16", "2020-04-06")),
+                      limits = as.Date(c("2020-01-20", "2020-04-24")),
                       date_labels = "%b %d") +
          si_style_ygrid() +
          theme(legend.position = "none")
@@ -376,6 +398,8 @@ library(patchwork)
          ggplot(aes(date, hfr_results_ptnr)) +
          geom_point(aes(y = point), color = "gray80", na.rm = TRUE) +
          geom_path(aes(group = iso_mech), na.rm = TRUE, size = .9, color = "gray80") +
+         geom_text(aes(label = iso_lab), color = "gray70", size = 2,
+                   hjust = -.2, family = "Source Sans Pro", na.rm = TRUE) +
          geom_smooth(aes(weight = mer_targets), se = FALSE, na.rm = TRUE, size = 1.5, color = "#440154FF") +
          geom_hline(aes(yintercept = 0)) +
          facet_wrap(~indicator, nrow = 1) +
@@ -383,6 +407,7 @@ library(patchwork)
          expand_limits(y = 1) +
          scale_y_continuous(labels = percent_format(1)) +
          scale_x_date(breaks = as.Date(c("2020-01-20", "2020-02-17", "2020-03-16")),
+                      limits = as.Date(c("2020-01-20", "2020-04-06")),
                       date_labels = c("2020.05", "2020.06", "2020.07")) +
          si_style_ygrid() +
          theme(legend.position = "none")
@@ -393,6 +418,8 @@ library(patchwork)
          ggplot(aes(date, hfr_results_ptnr)) +
          geom_point(aes(y = point), color = "gray80", na.rm = TRUE) +
          geom_path(aes(group = iso_mech), na.rm = TRUE, size = .9, color = "gray80") +
+         geom_text(aes(label = iso_lab), color = "gray70", size = 2,
+                   hjust = -.2, family = "Source Sans Pro", na.rm = TRUE) +
          geom_smooth(aes(weight = mer_targets), se = FALSE, na.rm = TRUE, size = 1.5, color = "#440154FF") +
          geom_hline(aes(yintercept = 0)) +
          facet_wrap(~indicator, nrow = 1) +
@@ -400,6 +427,7 @@ library(patchwork)
          expand_limits(y = 1) +
          scale_y_continuous(labels = comma) +
          scale_x_date(breaks = as.Date(c("2020-01-20", "2020-02-17", "2020-03-16")),
+                      limits = as.Date(c("2020-01-20", "2020-04-06")),
                       date_labels = c("2020.05", "2020.06", "2020.07")) +
          si_style_ygrid() +
          theme(legend.position = "none")
@@ -420,14 +448,21 @@ library(patchwork)
 # PLOT TRENDS -------------------------------------------------------------
 
   #test
-   plot_wklytrends(partners[1])
+   plot_wklytrends(partners[1], "Images")
    
   #export plots
    walk(partners, plot_wklytrends, out_path = "Images")
      
+   
+  tx_partners <- df_hfr %>% 
+    filter(indicator == "TX_CURR",
+           hfr_results_ptnr > 0) %>% 
+    distinct(sub_partner) %>% 
+    pull(sub_partner)
+  
   #test
-   plot_pdtrends(partners[1])
+   plot_pdtrends(tx_partners[1], "Images")
    
   #export plots
-   walk(partners, plot_pdtrends, out_path = "Images")     
+   walk(tx_partners, plot_pdtrends, out_path = "Images")     
    
