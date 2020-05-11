@@ -118,9 +118,15 @@ library(patchwork)
 
    plot_comparion <- function(ptnr, pd, out_path = NULL){
      
-     plot <- df_hfr_pdagg %>%
+     df_comp_viz <- df_hfr_pdagg %>%
+       #complete(indicator, nesting(orgunituid, iso_mech, hfr_pd)) %>% 
        filter(hfr_pd == pd,
               sub_partner == ptnr) %>% 
+       filter_at(vars(hfr_results_ctry, hfr_results_ptnr), any_vars(. != 0)) %>% 
+       mutate(mech_lab = ifelse(indicator == "HTS_TST", iso_mech, ""),
+              ind_lab = ifelse(mech_code == min(mech_code), indicator, ""))
+     
+     plot <- df_comp_viz %>% 
        ggplot(aes(hfr_results_ptnr, hfr_results_ctry, color = indicator)) +
        geom_hline(aes(yintercept = 0)) +
        geom_vline(aes(xintercept = 0)) +
@@ -128,11 +134,16 @@ library(patchwork)
        geom_point(size = 2, alpha = .4) +
        scale_y_continuous(labels = comma_format(1)) +
        scale_x_continuous(labels = comma_format(1)) +
-       facet_wrap(iso_mech ~ indicator, scales = "free", labeller = label_wrap_gen(multi_line=FALSE)) +
+       facet_wrap(iso_mech ~ indicator, scales = "free", ncol = 7, drop = FALSE,
+                  labeller = label_wrap_gen(multi_line=FALSE)) +
+       # labeller = labeller(iso_mech = df_comp_viz$mech_lab, 
+       #                     indicator = ind_order,
+       #                     .multi_line = FALSE)) +
        scale_color_manual(values = pal) +
-       labs(x = "Partner (HQ) Submisions", y = "USAID Country Team Submissions",
-            title = paste(ptnr, "HFR", pd),
-            subtitle = paste("comparsion of partner submission to USAID field missions")) +
+       labs(x = "Partner (HQ) Submisions", y = "USAID Country Team Submissions"
+            # title = paste(ptnr, "HFR", pd),
+            # subtitle = paste("comparsion of partner submission to USAID field missions")
+       ) +
        si_style() +
        theme(strip.placement = "outside",
              plot.title = element_text(face = "bold", size = 14),
@@ -143,8 +154,9 @@ library(patchwork)
      
      if(!is.null(out_path)){
        filename <- paste0("HFR_Comparison_", ptnr, "_", pd, ".png")
+       h <- unique(df_comp_viz$iso_mech) %>% length() * 0.8666667 + .2
        ggsave(filename, path = out_path,
-              width = 10, height = 5.625, dpi = 300)
+              width = 10, height = h, dpi = 300)
      }
      
       return(plot)
