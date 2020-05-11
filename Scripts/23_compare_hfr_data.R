@@ -153,7 +153,7 @@ library(patchwork)
              legend.position = "none")
      
      if(!is.null(out_path)){
-       filename <- paste0("HFR_Comparison_", ptnr, "_", pd, ".png")
+       filename <- paste0("HFR_Partner_Comparison_", ptnr, "_", pd, ".png")
        h <- unique(df_comp_viz$iso_mech) %>% length() * 0.8666667 + .2
        ggsave(filename, path = out_path,
               width = 10, height = h, dpi = 300)
@@ -240,7 +240,7 @@ library(patchwork)
             strip.text = element_text(hjust = 0))
     
     if(!is.null(out_path)){
-      filename <- paste0("HFR_Completeness_", ptnr, ".png")
+      filename <- paste0("HFR_Partner_Completeness_", ptnr, ".png")
       ggsave(filename, path = out_path,
              width = 10, height = 5.625, dpi = 300)
     }
@@ -381,7 +381,7 @@ library(patchwork)
        plot <- plot1 + plot2
        
        if(!is.null(out_path)){
-         filename <- paste0("HFR_WklyTrends_", ptnr, ".png")
+         filename <- paste0("HFR_Partner_WklyTrends_", ptnr, ".png")
          ggsave(filename, path = out_path,
                 width = 10, height = 3, dpi = 300)
        }
@@ -435,7 +435,7 @@ library(patchwork)
        plot <- trends_tx + trends_mmd
        
        if(!is.null(out_path)){
-         filename <- paste0("HFR_PdTrends_", ptnr, ".png")
+         filename <- paste0("HFR_Partner_PdTrends_", ptnr, ".png")
          ggsave(filename, path = out_path,
                 width = 6, height = 3, dpi = 300)
        }
