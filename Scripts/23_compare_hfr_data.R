@@ -205,7 +205,7 @@ library(patchwork)
      
   #bands
      df_comp <- df_comp %>% 
-       mutate(completeness_band = case_when(completeness_ptnr ==0 ~ 1,
+       mutate(completeness_band = case_when(completeness_ptnr < .5 ~ 1,
                                             completeness_ptnr <= 1 ~ round(completeness_ptnr/.1, 0),
                                             !is.na(completeness_ptnr) ~ 12),
               completeness_band = as.character(completeness_band))
@@ -255,7 +255,7 @@ library(patchwork)
 
     
     #test
-     plot_completeness(partners[1], "Images")
+     plot_completeness("PSI", "Images")
      
     #scatter plots for each partner and pd
      walk(partners, plot_completeness, out_path ="Images")
