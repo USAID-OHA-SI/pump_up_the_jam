@@ -220,18 +220,18 @@ library(RColorBrewer)
       full_join(df_complete_orgunits) %>% 
       mutate(complete_sites = ifelse(is.na(complete_sites), 0, complete_sites),
              share = complete_sites / all_sites,
-             ou_count = paste0(operatingunit, " (", complete_sites, "/",all_sites, ")"))
+             ou_count = paste0(operatingunit, " (", complete_sites, "/", comma(all_sites), ")"))
 
   #viz
     df_complete_share %>% 
       ggplot(aes(share, fct_reorder(ou_count, share, sum))) +
-      geom_col(aes(x = 1), fill = "gray90") +
-      geom_col(fill = heatmap_pal[5]) +
+      geom_col(fill = heatmap_pal[10], width = .8) +
       geom_vline(xintercept = seq(from = 0, to = 1, by = .1), color = "white") +
+      geom_col(aes(x = 1), fill = NA, width = .8, color = heatmap_pal[10]) +
       geom_text(aes(label = percent(share, 1)),
                 hjust = -.1, family = "Source Sans Pro", color = "gray30") +
       labs(x = NULL, y = NULL,
-           title = paste("SHARE OF SITES REPORTING IN ALL", pds, "PERIODS")) +
+           title = paste("SHARE OF SITES BY OU REPORTING IN ALL", pds, "PERIODS")) +
       scale_x_continuous(labels = percent, expand = c(0.005, 0.005)) +
       scale_y_discrete(expand = c(0.005, 0.005)) +
       si_style_nolines() +
