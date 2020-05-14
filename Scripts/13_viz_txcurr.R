@@ -176,10 +176,11 @@ library(RColorBrewer)
         facet_wrap(~ fct_reorder(mech_partner, mer_targets, sum, .desc = TRUE), scales = "free_y") +
         scale_y_continuous(label = comma, expand = c(-0, 0)) +
         scale_color_viridis_c(limits = c(0, 12), label = NULL, direction = -1) +
-        labs(x = NULL, y = NULL, fill = "Completeness (0% - 100%)",
+        labs(x = NULL, y = NULL, color = "Completeness (0% - 100%)",
              title = paste("FY20", toupper(ou_sel), "TX_CURR MECHANISM TRENDS"),
              caption = "notes: mechanisms ordered by MER targets
-           dotted line identifies FY20Q1 reported value") +
+              dotted line identifies FY20Q1 reported value
+              periods with no columns or line represent mechanisms with targets but no MER or HFR results") +
         si_style_ygrid() +
         theme(strip.text = element_text(face = "bold"),
               legend.title = element_text(family = "Source Sans Pro", color = "gray30"))
@@ -266,14 +267,14 @@ library(RColorBrewer)
     df_tx_comp %>% 
       ggplot(aes(hfr_pd, growth, group = ou_count)) +
       geom_col(aes(fill = growth > 0)) +
-      geom_hline(yintercept = 0) +
+      geom_hline(yintercept = 0, color = "gray40") +
       facet_wrap(~ fct_reorder(ou_count, mer_targets, sum, .desc = TRUE), scales = "free_y") +
       scale_y_continuous(labels = percent_format(.1)) +
       scale_fill_manual(values = c(posneg_pal[1], posneg_pal[3])) +
       labs(x = NULL, y = NULL,
            title = "TX_CURR GROWTH",
            subtitle =  "only sites that report every period") +
-      si_style() +
+      si_style_ygrid() +
       theme(strip.text = element_text(face = "bold"),
             legend.position = "none")
     
