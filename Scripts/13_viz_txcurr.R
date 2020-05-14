@@ -55,8 +55,14 @@ library(RColorBrewer)
     
   #create flags for whether site reported HFR and if site exists in DATIM
     df_tx <- df_tx %>% 
+      mutate_at(vars(mer_results, mer_targets), ~ ifelse(is.na(.), 0, .)) %>% 
       mutate(has_hfr_reporting = hfr_results > 0 ,
              is_datim_site = mer_results > 0 | mer_targets > 0)
+    
+    
+  #keep only DATIM sites
+    df_tx <- df_tx %>% 
+      filter(is_datim_site == TRUE)
     
 # CALCULATE COMPLETENESS --------------------------------------------------
     
