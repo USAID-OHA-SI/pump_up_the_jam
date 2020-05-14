@@ -3,7 +3,7 @@
 ## LICENSE:  MIT
 ## PURPOSE:  review and visualize TX_CURR HFR data
 ## DATE:     2020-05-13
-## UPDATED:  
+## UPDATED:  2020-05-14
 
 
 # DEPENDENCIES ------------------------------------------------------------
@@ -101,10 +101,13 @@ library(patchwork)
   
   viz_targ <- df_comp %>% 
     filter(hfr_pd == "2020.01") %>% 
+    mutate(trgt_lab = case_when(mer_targets > 10000 ~ paste0(round(mer_targets/1000, 0), "k"),
+                                mer_targets == 0 ~ "0",
+                                TRUE ~ paste0(round(mer_targets/1000, 1), "k"))) %>% 
     ggplot(aes(mer_targets, fct_reorder(operatingunit, mer_targets, sum))) +
     geom_blank(aes(mer_targets * 1.2)) +
     geom_col(fill = heatmap_pal[10]) +
-    geom_text(aes(label = comma(mer_targets)), family = "Source Sans Pro",
+    geom_text(aes(label = trgt_lab), family = "Source Sans Pro",
               color = "gray50", hjust = -.2) +
     labs(subtitle = "MER Targets (USAID)",
          x = NULL, y = NULL) +
