@@ -156,13 +156,19 @@ library(RColorBrewer)
     df_trends <- df_trends %>% 
       mutate(hfr_pd = str_sub(hfr_pd, start = -2))
     
+  #setup range
+    df_trends <- df_trends %>% 
+      group_by(mech_code) %>% 
+      mutate(max_range = max(hfr_results, mer_results, 50/1.2, na.rm = TRUE) * 1.2) %>% 
+      ungroup()
+    
   #plot function for trends
     plot_trends <- function(ou_sel, output_path = NULL){
       
-      df_trends %>% 
+      plot <- df_trends %>% 
         filter(operatingunit == ou_sel) %>% 
         ggplot(aes(hfr_pd, hfr_results)) +
-        geom_blank(aes(y = hfr_results * 1.2)) +
+        geom_blank(aes(y = max_range)) +
         geom_hline(aes(yintercept = 0), color = "gray30", na.rm = TRUE) +
         geom_col(fill = "gray80", na.rm = TRUE) +
         geom_point(aes(y = 0, color = completeness_band), size = 6) +
@@ -181,6 +187,8 @@ library(RColorBrewer)
       if(!is.null(output_path)){
         file <- paste0("HFR_TX_Trends", ou_sel, ".png")
         ggsave(file, path = "Images", width = 10, height = 5.625, dpi = 300)
+      } else {
+        return(plot)
       }
     }
   
