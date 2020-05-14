@@ -170,14 +170,16 @@ library(RColorBrewer)
         ggplot(aes(hfr_pd, hfr_results)) +
         geom_blank(aes(y = max_range)) +
         geom_hline(aes(yintercept = 0), color = "gray30", na.rm = TRUE) +
-        geom_col(fill = "gray80", na.rm = TRUE) +
-        geom_point(aes(y = 0, color = completeness_band), size = 6) +
+        geom_col(fill = heatmap_pal[9], na.rm = TRUE) +
+        geom_label(aes(y = 0, label = percent(completeness, 1)), vjust = -.2,
+                   label.size = 0,
+                   family = "Source Sans Pro", color = heatmap_pal[9]) +
         geom_hline(aes(yintercept = mer_results), linetype = "dashed", color = "gray20", na.rm = TRUE) +
         facet_wrap(~ fct_reorder(mech_partner, mer_targets, sum, .desc = TRUE), scales = "free_y") +
         scale_y_continuous(label = comma, expand = c(-0, 0)) +
-        scale_color_viridis_c(limits = c(0, 12), label = NULL, direction = -1) +
         labs(x = NULL, y = NULL, color = "Completeness (0% - 100%)",
              title = paste("FY20", toupper(ou_sel), "TX_CURR MECHANISM TRENDS"),
+             subtitle = "site completeness indicated at column base",
              caption = "notes: mechanisms ordered by MER targets
               dotted line identifies FY20Q1 reported value
               periods with no columns or line represent mechanisms with targets but no MER or HFR results") +
