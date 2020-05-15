@@ -38,7 +38,7 @@ library(RColorBrewer)
 # IMPORT ------------------------------------------------------------------
 
   #data created in 12_align_tx
-    df_tx <- read_csv(here(dataout, "HFR_FY20_TXCURR.csv"))
+    df_tx <- vroom(here(dataout, "HFR_FY20_TXCURR.csv"))
 
 
 
@@ -87,6 +87,17 @@ library(RColorBrewer)
   #keep only DATIM sites
     df_txcurr <- df_txcurr %>% 
       filter(is_datim_site == TRUE)
+    
+    
+
+# INTERPOLATE -------------------------------------------------------------
+
+  #interpolate missing hfr results (replace 0's w/ NA)
+    df_txcurr <- df_txcurr %>%
+      mutate(hfr_results = na_if(hfr_results, 0),
+             pd = str_sub(hfr_pd, -2) %>% as.integer,
+             hfr_results_ipol = approx(pd, hfr_results, pd)$y %>% round) %>% 
+      select(-pd)
     
 # CALCULATE COMPLETENESS --------------------------------------------------
     
