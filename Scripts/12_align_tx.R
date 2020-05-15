@@ -88,7 +88,7 @@ dataout <- "Dataout"
 
 # EXPORT DATA -------------------------------------------------------------
 
-  write.csv(df_tx, here(dataout, "HFR_FY20_TXCURR.csv"), na = "")    
+  write_csv(df_tx, here(dataout, "HFR_FY20_TXCURR.csv"), na = "")    
 
 # EXPLORE -----------------------------------------------------------------
 
