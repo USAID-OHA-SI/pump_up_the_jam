@@ -91,12 +91,29 @@ library(RColorBrewer)
 
 # INTERPOLATE -------------------------------------------------------------
 
-  #interpolate missing hfr results (replace 0's w/ NA)
+  #setup for interpolation: 
+  #  replace 0's w/ NA; count reporting pds
     df_txcurr <- df_txcurr %>%
-      mutate(hfr_results = na_if(hfr_results, 0),
-             pd = str_sub(hfr_pd, -2) %>% as.integer,
-             hfr_results_ipol = approx(pd, hfr_results, pd)$y %>% round) %>% 
-      select(-pd)
+      mutate(hfr_results = na_if(hfr_results, 0)) %>% 
+      group_by(mech_code, orgunituid) %>% 
+      mutate(pds_reported = sum(!is.na(hfr_results))) %>% 
+      ungroup()
+    
+  #id sites that need to be dropped (need min of 2pds for interpolation)
+    # df_incompatable_sites <- df_txcurr %>% 
+    #   filter(pds_reported < 2) %>% 
+    #   distinct(operatingunit, countryname, snu1, psnu, orgunit, orgunituid,
+    #            mech_code, mech_name, primepartner)
+    
+  #interpolate
+    df_txcurr <- df_txcurr %>%
+      filter(pds_reported >= 2) %>% 
+      group_by(mech_code, orgunituid) %>% 
+      mutate(hfr_results_ipol = approx(hfr_pd, hfr_results, hfr_pd)$y %>% round) %>% 
+      ungroup() %>% 
+      mutate(is_ipol = !is.na(hfr_results_ipol) & is.na(hfr_results)) 
+    
+
     
 # CALCULATE COMPLETENESS --------------------------------------------------
     
