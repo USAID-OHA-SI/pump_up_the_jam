@@ -3,7 +3,7 @@
 ## LICENSE:  MIT
 ## PURPOSE:  review and visualize TX_CURR HFR data
 ## DATE:     2020-05-13
-## UPDATED:  2020-05-14
+## UPDATED:  2020-05-18
 
 
 # DEPENDENCIES ------------------------------------------------------------
@@ -50,16 +50,15 @@ library(RColorBrewer)
       mutate(operatingunit = recode(operatingunit,
                                     "Democratic Republic of the Congo" = "DRC",
                                     "Dominican Republic" = "DR",
-                                    "Western Hemisphere Region" = "WHR"),
-             hfr_pd = (fy + hfr_pd/100) %>% as.character) 
+                                    "Western Hemisphere Region" = "WHR")) 
   
   #align dates with hfr_pds
     df_pds <- hfr_identify_pds(2020) %>% 
       group_by(hfr_pd) %>% 
       summarise(hfr_pd_date_min = min(date),
                 hfr_pd_date_max = max(date)) %>% 
-      ungroup() %>% 
-      mutate(hfr_pd = (2020 + hfr_pd/100) %>% as.character)
+      ungroup() 
+      # mutate(hfr_pd = (2020 + hfr_pd/100) %>% as.character)
       
   
   #extract mmd
