@@ -3,7 +3,7 @@
 ## LICENSE:  MIT
 ## PURPOSE:  align FY20 HFR data
 ## DATE:     2020-05-05
-## UPDATED:  
+## UPDATED:  2020-05-15
 
 
 # DEPENDENCIES ------------------------------------------------------------
@@ -23,27 +23,11 @@ dataout <- "Dataout"
 
 # IMPORT ------------------------------------------------------------------
 
-  #Periods 2020.01 - 2020.03 via SQL View
-    #https://drive.google.com/open?id=1fOaJBj0KwaeWPIhFF4y7afkRPvsq10B1
-    path_sql <- here(datain, "HFR_SQLview_2020.01thru2020.03.zip")
+  #Periods 2020.07-2020.07
+    #https://drive.google.com/open?id=1pumSnpuFfyXf4XEP9BhpHb5K41qZQV1Z
+    path_sql <- here(datain, "HFRDumpForAllOUsTX_MMDTX_CURR05152020.zip")
 
-    df_sql <- hfr_read(path_sql)
-
-  #Periods 2020.04-2020.06 via standard output
-    #https://drive.google.com/open?id=1mpGNxcCMpD_jbRGXe-nMhjDY_l9EzM1W
-    path_twb <- here(datain, "HFR_2020.06_Tableau_20200427.zip")
-  
-    df_twb <- hfr_read(path_twb)
-    
-
-# MERGE -------------------------------------------------------------------
-
-  #full FY20 TX_CURR dataset
-    df_tx <- df_twb %>% 
-        filter(indicator == "TX_CURR") %>% 
-        bind_rows(df_sql)
-     
-    rm(df_sql, df_twb)
+    df_tx <- hfr_read(path_sql)
     
 
 # CLEAN -------------------------------------------------------------------
@@ -52,9 +36,16 @@ dataout <- "Dataout"
     df_tx <- df_tx %>% 
       mutate(primepartner = str_remove(primepartner, "\r$"))
   
- 
+  #adjust MMD disagg to be an full indicator
+    df_tx <- df_tx %>% 
+      mutate(indicator = case_when(indicator == "TX_MMD" & str_detect(otherdisaggregate, "3( |m)") ~ "TX_MMD.u3",
+                                   indicator == "TX_MMD" & str_detect(otherdisaggregate, "3-5") ~ "TX_MMD.35",
+                                   indicator == "TX_MMD" & str_detect(otherdisaggregate, "6") ~ "TX_MMD.o6",
+                                   TRUE ~ indicator)) 
+    
   # aggregate (max) removing age/sex & date
     df_tx <- df_tx %>%
+      filter(indicator %in% c("TX_CURR", "TX_MMD.u3", "TX_MMD.35", "TX_MMD.o6")) %>% 
       group_by(operatingunit, countryname, snu1, psnu, orgunit, orgunituid,
                fy, hfr_pd,
                mech_code, mech_name, primepartner,
@@ -97,7 +88,7 @@ dataout <- "Dataout"
 
 # EXPORT DATA -------------------------------------------------------------
 
-  write.csv(df_tx, here(dataout, "HFR_FY20_TXCURR.csv"), na = "")    
+  write_csv(df_tx, here(dataout, "HFR_FY20_TXCURR.csv"), na = "")    
 
 # EXPLORE -----------------------------------------------------------------
 

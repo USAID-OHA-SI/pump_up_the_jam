@@ -3,7 +3,7 @@
 ## LICENSE:  MIT
 ## PURPOSE:  review and visualize TX_CURR HFR data
 ## DATE:     2020-05-13
-## UPDATED:  2020-05-14
+## UPDATED:  2020-05-18
 
 
 # DEPENDENCIES ------------------------------------------------------------
@@ -38,7 +38,7 @@ library(RColorBrewer)
 # IMPORT ------------------------------------------------------------------
 
   #data created in 12_align_tx
-    df_tx <- read_csv(here(dataout, "HFR_FY20_TXCURR.csv"))
+    df_tx <- vroom(here(dataout, "HFR_FY20_TXCURR.csv"))
 
 
 
@@ -50,24 +50,75 @@ library(RColorBrewer)
       mutate(operatingunit = recode(operatingunit,
                                     "Democratic Republic of the Congo" = "DRC",
                                     "Dominican Republic" = "DR",
-                                    "Western Hemisphere Region" = "WHR"),
-             hfr_pd = (fy + hfr_pd/100) %>% as.character) 
+                                    "Western Hemisphere Region" = "WHR")) 
+  
+  #align dates with hfr_pds
+    df_pds <- hfr_identify_pds(2020) %>% 
+      group_by(hfr_pd) %>% 
+      summarise(hfr_pd_date_min = min(date),
+                hfr_pd_date_max = max(date)) %>% 
+      ungroup() 
+      # mutate(hfr_pd = (2020 + hfr_pd/100) %>% as.character)
+      
+  
+  #extract mmd
+    df_mmd <- df_tx %>% 
+      select(-mer_results, -mer_targets) %>% 
+      spread(indicator, hfr_results) %>% 
+      rename_all(tolower) %>% 
+      rowwise() %>% 
+      mutate(tx_mmd.unkwn = tx_curr - sum(tx_mmd.u3, tx_mmd.35, tx_mmd.o6, na.rm = TRUE)) 
+    
+  #filter out sites where there is more than 100% reporting on MMD
+    df_mmd <- df_mmd %>% 
+      filter(tx_curr > 0,
+             tx_mmd.unkwn >= 0)
+    
+  #remove mmd
+    df_txcurr <- filter(df_tx, indicator == "TX_CURR")
     
   #create flags for whether site reported HFR and if site exists in DATIM
-    df_tx <- df_tx %>% 
+    df_txcurr <- df_tx %>% 
       mutate_at(vars(mer_results, mer_targets), ~ ifelse(is.na(.), 0, .)) %>% 
       mutate(has_hfr_reporting = hfr_results > 0 ,
              is_datim_site = mer_results > 0 | mer_targets > 0)
     
-    
   #keep only DATIM sites
-    df_tx <- df_tx %>% 
+    df_txcurr <- df_txcurr %>% 
       filter(is_datim_site == TRUE)
+    
+    
+
+# INTERPOLATE -------------------------------------------------------------
+
+  #setup for interpolation: 
+  #  replace 0's w/ NA; count reporting pds
+    df_txcurr <- df_txcurr %>%
+      mutate(hfr_results = na_if(hfr_results, 0)) %>% 
+      group_by(mech_code, orgunituid) %>% 
+      mutate(pds_reported = sum(!is.na(hfr_results))) %>% 
+      ungroup()
+    
+  #id sites that need to be dropped (need min of 2pds for interpolation)
+    # df_incompatable_sites <- df_txcurr %>% 
+    #   filter(pds_reported < 2) %>% 
+    #   distinct(operatingunit, countryname, snu1, psnu, orgunit, orgunituid,
+    #            mech_code, mech_name, primepartner)
+    
+  #interpolate
+    df_txcurr <- df_txcurr %>%
+      filter(pds_reported >= 2) %>% 
+      group_by(mech_code, orgunituid) %>% 
+      mutate(hfr_results_ipol = approx(hfr_pd, hfr_results, hfr_pd)$y %>% round) %>% 
+      ungroup() %>% 
+      mutate(is_ipol = !is.na(hfr_results_ipol) & is.na(hfr_results)) 
+    
+
     
 # CALCULATE COMPLETENESS --------------------------------------------------
     
     #aggregate to country
-      df_comp <- df_tx %>% 
+      df_comp <- df_txcurr %>% 
         group_by(hfr_pd, indicator, operatingunit) %>% 
         summarise_at(vars(has_hfr_reporting, is_datim_site, mer_targets), sum, na.rm = TRUE) %>% 
         ungroup()
@@ -136,7 +187,7 @@ library(RColorBrewer)
 # OU X MECH TRENDS --------------------------------------------------------
 
   #aggregate to ou level
-    df_trends <-  df_tx %>% 
+    df_trends <-  df_txcurr %>% 
         group_by(operatingunit, mech_code, primepartner, indicator, hfr_pd) %>% 
         summarise_at(vars(mer_targets, mer_results, hfr_results, has_hfr_reporting, is_datim_site), sum, na.rm = TRUE) %>% 
         ungroup() %>%
@@ -204,10 +255,10 @@ library(RColorBrewer)
 # CONSISTENT REPORTING ----------------------------------------------------
 
   #identify the number of periods
-    pds <- unique(df_tx$hfr_pd) %>% length()
+    pds <- unique(df_txcurr$hfr_pd) %>% length()
   
   #identify which site x mechs had reporting every period 
-    df_complete_orgunits <- df_tx %>% 
+    df_complete_orgunits <- df_txcurr %>% 
       filter(hfr_results > 0) %>% 
       group_by(orgunituid, mech_code) %>% 
       filter(n() == pds) %>% 
@@ -216,7 +267,7 @@ library(RColorBrewer)
       count(operatingunit, name = "complete_sites")
     
   #get a share of sites reporting every pd
-    df_complete_share <- df_tx %>% 
+    df_complete_share <- df_txcurr %>% 
       distinct(operatingunit, orgunituid) %>% 
       count(operatingunit, name = "all_sites") %>% 
       full_join(df_complete_orgunits) %>% 
@@ -245,14 +296,14 @@ library(RColorBrewer)
 # GROWTH TRENDS FOR CONSISTENT SITES --------------------------------------
 
     #filter to where reporting is greater than 0 and for all pds
-      df_tx_comp <- df_tx %>% 
+      df_txcurr_comp <- df_txcurr %>% 
         filter(hfr_results > 0) %>% 
         group_by(orgunituid, mech_code) %>% 
         filter(n() == pds) %>% 
         ungroup()
     
     #aggregate to OU level and create growth metric
-      df_tx_comp <- df_tx_comp %>% 
+      df_txcurr_comp <- df_txcurr_comp %>% 
         group_by(operatingunit, hfr_pd) %>% 
         summarise(hfr_results  = sum(hfr_results, na.rm = TRUE), 
                   mer_targets = sum(mer_targets, na.rm = TRUE), 
@@ -266,7 +317,7 @@ library(RColorBrewer)
         mutate(ou_count = paste0(operatingunit, " (", n, ")"),
                hfr_pd = str_sub(hfr_pd, start = -2))
   
-    df_tx_comp %>% 
+    df_txcurr_comp %>% 
       ggplot(aes(hfr_pd, growth, group = ou_count)) +
       geom_col(aes(fill = growth > 0)) +
       geom_hline(yintercept = 0, color = "gray40") +
