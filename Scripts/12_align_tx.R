@@ -67,20 +67,24 @@ dataout <- "Dataout"
                                    indicator == "TX_MMD" & str_detect(otherdisaggregate, "6") ~ "TX_MMD.o6",
                                    TRUE ~ indicator)) 
     
-  # aggregate (max) removing age/sex & date
+  # aggregate age/sex total by date (sum)
     df_tx <- df_tx %>%
       filter(indicator %in% c("TX_CURR", "TX_MMD.u3", "TX_MMD.35", "TX_MMD.o6")) %>% 
+      group_by(operatingunit, countryname, snu1, psnu, orgunit, orgunituid,
+               fy, hfr_pd, date,
+               mech_code, mech_name, primepartner,
+               indicator) %>% 
+      summarise_at(vars(mer_targets, mer_results, hfr_results = val), sum, na.rm = TRUE) %>%
+      ungroup()
+    
+  #aggregate up to hfr period (max)
+    df_tx <- df_tx %>% 
       group_by(operatingunit, countryname, snu1, psnu, orgunit, orgunituid,
                fy, hfr_pd,
                mech_code, mech_name, primepartner,
                indicator) %>% 
-      summarise_at(vars(mer_targets, mer_results, hfr_results = val), max, na.rm = TRUE) %>% 
+      summarise_at(vars(mer_targets, mer_results, hfr_results), max, na.rm = TRUE) %>% 
       ungroup()
-
-  #fix -Inf issue
-    df_tx <- df_tx %>% 
-      mutate_at(vars(starts_with("mer")), ~ na_if(., -Inf))
-  
   
   #replace //N with NA
     df_tx <- df_tx %>% 
