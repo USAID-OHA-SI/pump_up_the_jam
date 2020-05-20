@@ -210,15 +210,28 @@ library(RColorBrewer)
         ungroup() %>% 
         distinct(operatingunit, orgunituid) %>% 
         count(operatingunit, name = "complete_sites")
+    
+    #identify which site x mechs had reporting/interpoled data every period 
+      df_complete_ipol_orgunits <- df_txcurr %>% 
+        filter(hfr_results_ipol > 0) %>% 
+        group_by(orgunituid, mech_code) %>% 
+        filter(n() == pds) %>% 
+        ungroup() %>% 
+        distinct(operatingunit, orgunituid) %>% 
+        count(operatingunit, name = "complete_sites_ipol")
       
     #get a share of sites reporting every pd
       df_complete_share <- df_txcurr %>% 
         distinct(operatingunit, orgunituid) %>% 
         count(operatingunit, name = "all_sites") %>% 
-        full_join(df_complete_orgunits) %>% 
+        full_join(df_complete_orgunits, by = "operatingunit") %>% 
+        full_join(df_complete_ipol_orgunits, by = "operatingunit") %>% 
         mutate(complete_sites = ifelse(is.na(complete_sites), 0, complete_sites),
+               complete_sites_ipol = ifelse(is.na(complete_sites_ipol), 0, complete_sites_ipol),
                share = complete_sites / all_sites,
-               ou_count = paste0(operatingunit, " (", complete_sites, "/", comma(all_sites), ")"))
+               share_ipol = complete_sites_ipol / all_sites,
+               ou_count = paste0(operatingunit, " (", comma(complete_sites), "/", comma(all_sites), ")"),
+               ou_count_ipol = paste0(operatingunit, " (", comma(complete_sites_ipol), "/", comma(all_sites), ")"))
       
     #viz
       df_complete_share %>% 
@@ -237,6 +250,23 @@ library(RColorBrewer)
       
       ggsave("HFR_TX_SitesAllPds.png", path = "Images", width = 10, height = 5.625, dpi = 300)
       
+      
+      df_complete_share %>% 
+        ggplot(aes(share, fct_reorder(ou_count_ipol, share, sum))) +
+        geom_col(aes(share_ipol), fill = heatmap_pal[7], width = .8) +
+        geom_col(fill = heatmap_pal[10], width = .8) +
+        geom_vline(xintercept = seq(from = 0, to = 1, by = .1), color = "white") +
+        geom_col(aes(x = 1), fill = NA, width = .8, color = heatmap_pal[10]) +
+        geom_text(aes(share_ipol, label = percent(share_ipol, 1)),
+                  hjust = -.1, family = "Source Sans Pro", color = "gray30") +
+        labs(x = NULL, y = NULL,
+             title = paste("SHARE OF SITES BY OU REPORTING IN ALL", pds, "PERIODS WHEN INTERPOLATING")) +
+        scale_x_continuous(labels = percent, expand = c(0.005, 0.005)) +
+        scale_y_discrete(expand = c(0.005, 0.005)) +
+        si_style_nolines() +
+        theme(axis.text.x = element_blank())
+
+      ggsave("HFR_TX_SitesAllPds_Ipol.png", path = "Images", width = 10, height = 5.625, dpi = 300)
       
 # GROWTH TRENDS FOR CONSISTENT SITES --------------------------------------
       
