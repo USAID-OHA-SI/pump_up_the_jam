@@ -316,7 +316,7 @@ library(RColorBrewer)
       
     #filter to where reporting is greater than 0 and for all pds
       df_txcurr_comp <- df_txcurr %>% 
-        filter(hfr_results > 0) %>% 
+        filter(hfr_results_ipol > 0) %>% 
         group_by(orgunituid, mech_code) %>% 
         filter(n() == pds) %>% 
         ungroup()
@@ -324,31 +324,39 @@ library(RColorBrewer)
     #aggregate to OU level and create growth metric
       df_txcurr_comp <- df_txcurr_comp %>% 
         group_by(operatingunit, hfr_pd) %>% 
-        summarise(hfr_results  = sum(hfr_results, na.rm = TRUE), 
+        summarise(hfr_results_ipol  = sum(hfr_results_ipol, na.rm = TRUE), 
                   mer_targets = sum(mer_targets, na.rm = TRUE), 
                   n = n()
         ) %>% 
         ungroup() %>% 
         group_by(operatingunit) %>% 
-        mutate(growth = (hfr_results - lag(hfr_results, order_by = hfr_pd)) / lag(hfr_results, order_by = hfr_pd)) %>% 
+        mutate(growth = (hfr_results_ipol - lag(hfr_results_ipol, order_by = hfr_pd)) / lag(hfr_results_ipol, order_by = hfr_pd)) %>% 
         ungroup() %>% 
-        filter(hfr_pd != "2020.01") %>% 
-        mutate(ou_count = paste0(operatingunit, " (", n, ")"),
-               hfr_pd = str_sub(hfr_pd, start = -2))
+        filter(hfr_pd != 1) %>% 
+        mutate(ou_count = paste0(operatingunit, " (", comma(n), ")"))
+      
+    #clean up period
+      df_txcurr_comp <- df_txcurr_comp %>% 
+        left_join(df_pds, by = "hfr_pd") %>% 
+        mutate(date_lab = paste0(format.Date(hfr_pd_date_max, "%b %d"), "\n(",
+                                 str_pad(hfr_pd, 2, pad = "0"), ")"),
+               date_lab = fct_reorder(date_lab, hfr_pd_date_max))
     
     #viz
       df_txcurr_comp %>% 
-        ggplot(aes(hfr_pd, growth, group = ou_count)) +
+        ggplot(aes(date_lab, growth, group = ou_count)) +
         geom_col(aes(fill = growth > 0)) +
         geom_hline(yintercept = 0, color = "gray40") +
         facet_wrap(~ fct_reorder(ou_count, mer_targets, sum, .desc = TRUE), scales = "free_y") +
         scale_y_continuous(labels = percent_format(.1)) +
-        scale_fill_manual(values = c(posneg_pal[1], posneg_pal[3])) +
+        scale_fill_manual(values = c(heatmap_pal[6], "#433E85FF")) +
+        # scale_fill_manual(values = c(posneg_pal[1], posneg_pal[3])) +
         labs(x = NULL, y = NULL,
              title = "TX_CURR GROWTH",
-             subtitle =  "only sites that report every period") +
+             subtitle =  "only sites that report every period (using interpolated data)") +
         si_style_ygrid() +
         theme(strip.text = element_text(face = "bold"),
+              panel.spacing = unit(2, "lines"),
               legend.position = "none")
       
       
