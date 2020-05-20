@@ -146,11 +146,14 @@ library(RColorBrewer)
     
     #clean up period
       df_comp <- df_comp %>% 
-        mutate(hfr_pd = str_pad(hfr_pd, 2, pad = "0"))
+        left_join(df_pds) %>% 
+        mutate(date_lab = paste0(format.Date(hfr_pd_date_max, "%b %d"), "\n(",
+                                 str_pad(hfr_pd, 2, pad = "0"), ")"),
+               date_lab = fct_reorder(date_lab, hfr_pd_date_max))
       
     #viz completeness
       viz_comp <- df_comp %>% 
-        ggplot(aes(hfr_pd, fct_reorder(ou_sitecount, mer_targets, sum), fill = completeness_band)) +
+        ggplot(aes(date_lab, fct_reorder(ou_sitecount, mer_targets, sum), fill = completeness_band)) +
         geom_tile(color = "white", size = 0.25) +
         geom_text(aes(label = percent(completeness),
                       color = ifelse(completeness_band <= 1, "dark", "light")),
