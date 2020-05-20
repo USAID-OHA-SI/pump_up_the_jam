@@ -233,7 +233,7 @@ library(RColorBrewer)
                ou_count = paste0(operatingunit, " (", comma(complete_sites), "/", comma(all_sites), ")"),
                ou_count_ipol = paste0(operatingunit, " (", comma(complete_sites_ipol), "/", comma(all_sites), ")"))
       
-    #viz
+    #viz, completeness w/ original data
       df_complete_share %>% 
         ggplot(aes(share, fct_reorder(ou_count, share, sum))) +
         geom_col(fill = heatmap_pal[10], width = .8) +
@@ -250,7 +250,7 @@ library(RColorBrewer)
       
       ggsave("HFR_TX_SitesAllPds.png", path = "Images", width = 10, height = 5.625, dpi = 300)
       
-      
+    #viz, completeness w/ interpolation
       df_complete_share %>% 
         ggplot(aes(share, fct_reorder(ou_count_ipol, share, sum))) +
         geom_col(aes(share_ipol), fill = heatmap_pal[7], width = .8) +
