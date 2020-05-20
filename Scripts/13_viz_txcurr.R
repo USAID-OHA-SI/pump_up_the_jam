@@ -201,13 +201,13 @@ library(RColorBrewer)
   #aggregate to ou level
     df_trends <-  df_txcurr %>% 
         group_by(operatingunit, mech_code, primepartner, indicator, hfr_pd) %>% 
-        summarise_at(vars(mer_targets, mer_results, hfr_results, has_hfr_reporting, is_datim_site), sum, na.rm = TRUE) %>% 
+        summarise_at(vars(mer_targets, mer_results, hfr_results, hfr_results_ipol, has_hfr_reporting, is_datim_site), sum, na.rm = TRUE) %>% 
         ungroup() %>%
-        mutate_at(vars(hfr_results, mer_targets, mer_results), ~ na_if(., 0)) %>% 
+        mutate_at(vars(hfr_results, hfr_results_ipol, mer_targets, mer_results), ~ na_if(., 0)) %>% 
         arrange(operatingunit, mech_code, hfr_pd) %>% 
         mutate(mech_partner = paste(mech_code, primepartner))
       
-    #calculate completeness
+  #calculate completeness
     df_trends <- df_trends %>% 
       mutate(completeness = has_hfr_reporting / is_datim_site,
              completeness = ifelse(is.nan(completeness) | is.infinite(completeness), NA, completeness),
