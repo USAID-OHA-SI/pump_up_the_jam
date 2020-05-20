@@ -237,7 +237,9 @@ library(RColorBrewer)
              caption = "Note: Completeness derived by comparing HFR reporting against sites with DATIM results/targets"
         ) +
         si_style_nolines() +
-        theme(plot.caption = element_text(color = "gray30"))      
+        theme(plot.caption = element_text(color = "gray30"))  
+      
+      ggsave("HFR_TX_SiteCount.png", path = "Images", width = 10, height = 5.625, dpi = 300)
       
 # CONSISTENT REPORTING ----------------------------------------------------
       
