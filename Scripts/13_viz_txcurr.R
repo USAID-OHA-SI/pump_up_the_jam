@@ -3,7 +3,7 @@
 ## LICENSE:  MIT
 ## PURPOSE:  review and visualize TX_CURR HFR data
 ## DATE:     2020-05-13
-## UPDATED:  2020-05-18
+## UPDATED:  2020-05-20
 
 
 # DEPENDENCIES ------------------------------------------------------------
@@ -78,7 +78,7 @@ library(RColorBrewer)
     df_txcurr <- filter(df_tx, indicator == "TX_CURR")
     
   #create flags for whether site reported HFR and if site exists in DATIM
-    df_txcurr <- df_tx %>% 
+    df_txcurr <- df_txcurr %>% 
       mutate_at(vars(mer_results, mer_targets), ~ ifelse(is.na(.), 0, .)) %>% 
       mutate(has_hfr_reporting = hfr_results > 0 ,
              is_datim_site = mer_results > 0 | mer_targets > 0)
@@ -100,10 +100,9 @@ library(RColorBrewer)
       ungroup()
     
   #id sites that need to be dropped (need min of 2pds for interpolation)
-    # df_incompatable_sites <- df_txcurr %>% 
-    #   filter(pds_reported < 2) %>% 
-    #   distinct(operatingunit, countryname, snu1, psnu, orgunit, orgunituid,
-    #            mech_code, mech_name, primepartner)
+    df_nonipol_sites <- df_txcurr %>%
+      filter(pds_reported < 2) %>% 
+      mutate(is_ipol = FALSE)
     
   #interpolate
     df_txcurr <- df_txcurr %>%
@@ -111,9 +110,15 @@ library(RColorBrewer)
       group_by(mech_code, orgunituid) %>% 
       mutate(hfr_results_ipol = approx(hfr_pd, hfr_results, hfr_pd)$y %>% round) %>% 
       ungroup() %>% 
-      mutate(is_ipol = !is.na(hfr_results_ipol) & is.na(hfr_results)) 
+      mutate(is_ipol = !is.na(hfr_results_ipol) & is.na(hfr_results))
+    
+  #apend non interpolated sites
+    df_txcurr <- bind_rows(df_txcurr, df_nonipol_sites)
     
 
+# EXTRAPOLATE -------------------------------------------------------------
+
+  #TBD
     
 # CALCULATE COMPLETENESS --------------------------------------------------
     
@@ -139,6 +144,10 @@ library(RColorBrewer)
       df_comp <- df_comp %>% 
         filter_at(vars(has_hfr_reporting, is_datim_site, mer_targets), any_vars(. != 0 | is.na(.)))
     
+    #clean up period
+      df_comp <- df_comp %>% 
+        mutate(hfr_pd = str_pad(hfr_pd, 2, pad = "0"))
+      
     #viz completeness
       viz_comp <- df_comp %>% 
         ggplot(aes(hfr_pd, fct_reorder(ou_sitecount, mer_targets, sum), fill = completeness_band)) +
@@ -159,7 +168,7 @@ library(RColorBrewer)
       
     #viz mer targets
       viz_targ <- df_comp %>% 
-        filter(hfr_pd == "2020.01") %>% 
+        filter(hfr_pd == max(hfr_pd)) %>% 
         mutate(trgt_lab = case_when(mer_targets > 1000000 ~ paste0(round(mer_targets/1000000, 1), "m"),
                                     mer_targets > 10000 ~ paste0(round(mer_targets/1000, 0), "k"),
                                     mer_targets == 0 ~ "0",
@@ -205,7 +214,8 @@ library(RColorBrewer)
              )
   #clean up pd
     df_trends <- df_trends %>% 
-      mutate(hfr_pd = str_sub(hfr_pd, start = -2))
+      mutate(hfr_pd = as.integer(hfr_pd)) %>% 
+      left_join(df_pds, by = "hfr_pd")
     
   #setup range
     df_trends <- df_trends %>% 
