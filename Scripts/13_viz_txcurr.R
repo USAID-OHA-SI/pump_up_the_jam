@@ -196,6 +196,48 @@ library(RColorBrewer)
       
       ggsave("HFR_TX_Comp.png", path = "Images", width = 10, height = 5.625, dpi = 300)
   
+
+# SITE COUNT PER PERIOD ---------------------------------------------------
+
+      df_rpt_sites <- df_txcurr %>% 
+        group_by(operatingunit, hfr_pd) %>% 
+        summarise_at(vars(mer_targets, has_hfr_reporting, is_datim_site), sum, na.rm = TRUE) %>% 
+        ungroup() %>% 
+        mutate(no_reporting = has_hfr_reporting- is_datim_site,
+               share_reporting = has_hfr_reporting/is_datim_site,
+               share_noreporting = share_reporting-1,
+               ou_sitecount = paste0(operatingunit, " (", comma(is_datim_site), ")")) %>% 
+        left_join(df_pds) %>% 
+        mutate(date_lab = paste0(format.Date(hfr_pd_date_max, "%b %d"), "\n(",
+                                 str_pad(hfr_pd, 2, pad = "0"), ")"),
+               date_lab = fct_reorder(date_lab, hfr_pd_date_max))
+      
+      df_rpt_sites %>% 
+        ggplot(aes(date_lab)) +
+        geom_col(aes(y = share_reporting), fill = heatmap_pal[10]) +
+        geom_col(aes(y = share_noreporting), fill = heatmap_pal[6]) +
+        geom_hline(yintercept = 0) +
+        facet_wrap( ~ fct_reorder(ou_sitecount, mer_targets, .desc = TRUE)) +
+        scale_y_continuous(label = percent) +
+        si_style() 
+      
+      
+      df_rpt_sites %>% 
+        ggplot(aes(date_lab, share_reporting)) +
+        geom_col(fill = heatmap_pal[10]) +
+        geom_col(aes(y = 1), fill = NA, color = heatmap_pal[10]) +
+        geom_hline(yintercept = 0) +
+        geom_text(aes(y = 1.15, label = comma(has_hfr_reporting)), color = "gray30",
+                  family = "Source Sans Pro") +
+        expand_limits(y = 1.3) +
+        facet_wrap( ~ fct_reorder(ou_sitecount, mer_targets, .desc = TRUE)) +
+        scale_y_continuous(label = percent) +
+        labs(x = NULL, y = "share of sites reporting",
+             title = "SITES REPORTING EACH PERIOD BY OPERATING UNIT",
+             caption = "Note: Completeness derived by comparing HFR reporting against sites with DATIM results/targets"
+        ) +
+        si_style_nolines() +
+        theme(plot.caption = element_text(color = "gray30"))      
       
 # CONSISTENT REPORTING ----------------------------------------------------
       
