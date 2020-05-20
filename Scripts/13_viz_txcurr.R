@@ -167,7 +167,8 @@ library(RColorBrewer)
         theme(legend.position = "none",
               legend.justification = c(0, 0),
               panel.grid = element_blank(),
-              text = element_text(family = "Source Sans Pro"))
+              text = element_text(family = "Source Sans Pro"),
+              plot.caption = element_text(color = "gray30"))
       
     #viz mer targets
       viz_targ <- df_comp %>% 
@@ -195,7 +196,90 @@ library(RColorBrewer)
       
       ggsave("HFR_TX_Comp.png", path = "Images", width = 10, height = 5.625, dpi = 300)
   
-
+      
+# CONSISTENT REPORTING ----------------------------------------------------
+      
+    #identify the number of periods
+      pds <- unique(df_txcurr$hfr_pd) %>% length()
+      
+    #identify which site x mechs had reporting every period 
+      df_complete_orgunits <- df_txcurr %>% 
+        filter(hfr_results > 0) %>% 
+        group_by(orgunituid, mech_code) %>% 
+        filter(n() == pds) %>% 
+        ungroup() %>% 
+        distinct(operatingunit, orgunituid) %>% 
+        count(operatingunit, name = "complete_sites")
+      
+    #get a share of sites reporting every pd
+      df_complete_share <- df_txcurr %>% 
+        distinct(operatingunit, orgunituid) %>% 
+        count(operatingunit, name = "all_sites") %>% 
+        full_join(df_complete_orgunits) %>% 
+        mutate(complete_sites = ifelse(is.na(complete_sites), 0, complete_sites),
+               share = complete_sites / all_sites,
+               ou_count = paste0(operatingunit, " (", complete_sites, "/", comma(all_sites), ")"))
+      
+    #viz
+      df_complete_share %>% 
+        ggplot(aes(share, fct_reorder(ou_count, share, sum))) +
+        geom_col(fill = heatmap_pal[10], width = .8) +
+        geom_vline(xintercept = seq(from = 0, to = 1, by = .1), color = "white") +
+        geom_col(aes(x = 1), fill = NA, width = .8, color = heatmap_pal[10]) +
+        geom_text(aes(label = percent(share, 1)),
+                  hjust = -.1, family = "Source Sans Pro", color = "gray30") +
+        labs(x = NULL, y = NULL,
+             title = paste("SHARE OF SITES BY OU REPORTING IN ALL", pds, "PERIODS")) +
+        scale_x_continuous(labels = percent, expand = c(0.005, 0.005)) +
+        scale_y_discrete(expand = c(0.005, 0.005)) +
+        si_style_nolines() +
+        theme(axis.text.x = element_blank())
+      
+      ggsave("HFR_TX_SitesAllPds.png", path = "Images", width = 10, height = 5.625, dpi = 300)
+      
+      
+# GROWTH TRENDS FOR CONSISTENT SITES --------------------------------------
+      
+    #filter to where reporting is greater than 0 and for all pds
+      df_txcurr_comp <- df_txcurr %>% 
+        filter(hfr_results > 0) %>% 
+        group_by(orgunituid, mech_code) %>% 
+        filter(n() == pds) %>% 
+        ungroup()
+      
+    #aggregate to OU level and create growth metric
+      df_txcurr_comp <- df_txcurr_comp %>% 
+        group_by(operatingunit, hfr_pd) %>% 
+        summarise(hfr_results  = sum(hfr_results, na.rm = TRUE), 
+                  mer_targets = sum(mer_targets, na.rm = TRUE), 
+                  n = n()
+        ) %>% 
+        ungroup() %>% 
+        group_by(operatingunit) %>% 
+        mutate(growth = (hfr_results - lag(hfr_results, order_by = hfr_pd)) / lag(hfr_results, order_by = hfr_pd)) %>% 
+        ungroup() %>% 
+        filter(hfr_pd != "2020.01") %>% 
+        mutate(ou_count = paste0(operatingunit, " (", n, ")"),
+               hfr_pd = str_sub(hfr_pd, start = -2))
+    
+    #viz
+      df_txcurr_comp %>% 
+        ggplot(aes(hfr_pd, growth, group = ou_count)) +
+        geom_col(aes(fill = growth > 0)) +
+        geom_hline(yintercept = 0, color = "gray40") +
+        facet_wrap(~ fct_reorder(ou_count, mer_targets, sum, .desc = TRUE), scales = "free_y") +
+        scale_y_continuous(labels = percent_format(.1)) +
+        scale_fill_manual(values = c(posneg_pal[1], posneg_pal[3])) +
+        labs(x = NULL, y = NULL,
+             title = "TX_CURR GROWTH",
+             subtitle =  "only sites that report every period") +
+        si_style_ygrid() +
+        theme(strip.text = element_text(face = "bold"),
+              legend.position = "none")
+      
+      
+      ggsave("HFR_TX_Growth_SitesAllPds.png", path = "Images", width = 10, height = 5.625, dpi = 300)
+      
 # OU X MECH TRENDS --------------------------------------------------------
 
   #aggregate to ou level
@@ -265,88 +349,7 @@ library(RColorBrewer)
   
   
 
-# CONSISTENT REPORTING ----------------------------------------------------
 
-  #identify the number of periods
-    pds <- unique(df_txcurr$hfr_pd) %>% length()
-  
-  #identify which site x mechs had reporting every period 
-    df_complete_orgunits <- df_txcurr %>% 
-      filter(hfr_results > 0) %>% 
-      group_by(orgunituid, mech_code) %>% 
-      filter(n() == pds) %>% 
-      ungroup() %>% 
-      distinct(operatingunit, orgunituid) %>% 
-      count(operatingunit, name = "complete_sites")
-    
-  #get a share of sites reporting every pd
-    df_complete_share <- df_txcurr %>% 
-      distinct(operatingunit, orgunituid) %>% 
-      count(operatingunit, name = "all_sites") %>% 
-      full_join(df_complete_orgunits) %>% 
-      mutate(complete_sites = ifelse(is.na(complete_sites), 0, complete_sites),
-             share = complete_sites / all_sites,
-             ou_count = paste0(operatingunit, " (", complete_sites, "/", comma(all_sites), ")"))
-
-  #viz
-    df_complete_share %>% 
-      ggplot(aes(share, fct_reorder(ou_count, share, sum))) +
-      geom_col(fill = heatmap_pal[10], width = .8) +
-      geom_vline(xintercept = seq(from = 0, to = 1, by = .1), color = "white") +
-      geom_col(aes(x = 1), fill = NA, width = .8, color = heatmap_pal[10]) +
-      geom_text(aes(label = percent(share, 1)),
-                hjust = -.1, family = "Source Sans Pro", color = "gray30") +
-      labs(x = NULL, y = NULL,
-           title = paste("SHARE OF SITES BY OU REPORTING IN ALL", pds, "PERIODS")) +
-      scale_x_continuous(labels = percent, expand = c(0.005, 0.005)) +
-      scale_y_discrete(expand = c(0.005, 0.005)) +
-      si_style_nolines() +
-      theme(axis.text.x = element_blank())
-  
-    ggsave("HFR_TX_SitesAllPds.png", path = "Images", width = 10, height = 5.625, dpi = 300)
-  
-
-# GROWTH TRENDS FOR CONSISTENT SITES --------------------------------------
-
-    #filter to where reporting is greater than 0 and for all pds
-      df_txcurr_comp <- df_txcurr %>% 
-        filter(hfr_results > 0) %>% 
-        group_by(orgunituid, mech_code) %>% 
-        filter(n() == pds) %>% 
-        ungroup()
-    
-    #aggregate to OU level and create growth metric
-      df_txcurr_comp <- df_txcurr_comp %>% 
-        group_by(operatingunit, hfr_pd) %>% 
-        summarise(hfr_results  = sum(hfr_results, na.rm = TRUE), 
-                  mer_targets = sum(mer_targets, na.rm = TRUE), 
-                  n = n()
-                  ) %>% 
-        ungroup() %>% 
-        group_by(operatingunit) %>% 
-        mutate(growth = (hfr_results - lag(hfr_results, order_by = hfr_pd)) / lag(hfr_results, order_by = hfr_pd)) %>% 
-        ungroup() %>% 
-        filter(hfr_pd != "2020.01") %>% 
-        mutate(ou_count = paste0(operatingunit, " (", n, ")"),
-               hfr_pd = str_sub(hfr_pd, start = -2))
-  
-    df_txcurr_comp %>% 
-      ggplot(aes(hfr_pd, growth, group = ou_count)) +
-      geom_col(aes(fill = growth > 0)) +
-      geom_hline(yintercept = 0, color = "gray40") +
-      facet_wrap(~ fct_reorder(ou_count, mer_targets, sum, .desc = TRUE), scales = "free_y") +
-      scale_y_continuous(labels = percent_format(.1)) +
-      scale_fill_manual(values = c(posneg_pal[1], posneg_pal[3])) +
-      labs(x = NULL, y = NULL,
-           title = "TX_CURR GROWTH",
-           subtitle =  "only sites that report every period") +
-      si_style_ygrid() +
-      theme(strip.text = element_text(face = "bold"),
-            legend.position = "none")
-    
-    
-    ggsave("HFR_TX_Growth_SitesAllPds.png", path = "Images", width = 10, height = 5.625, dpi = 300)
-    
     
     
   
