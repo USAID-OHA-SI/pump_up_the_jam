@@ -17,6 +17,7 @@ library(extrafont)
 library(glitr)
 library(patchwork)
 library(RColorBrewer)
+library(COVIDutilities)
 
 
 
@@ -34,6 +35,8 @@ library(RColorBrewer)
   
   posneg_pal <- brewer.pal(3, "BrBG")
 
+  
+  pandemic_date <- who_pandemic()
 
 # IMPORT ------------------------------------------------------------------
 
@@ -480,7 +483,59 @@ library(RColorBrewer)
   
 
 
+# GROWTH CHANGE -----------------------------------------------------------
+
+    pds <- df_txcurr %>% 
+        distinct(hfr_pd) %>% 
+        filter(hfr_pd > 3) %>% 
+        pull()
+      
+    df_growth <- df_txcurr %>% 
+        filter(hfr_pd %in% pds,
+               hfr_results_ipol > 0) %>% 
+        group_by(orgunituid, mech_code) %>% 
+        filter(n() == length(pds)) %>% 
+      ungroup()
+        
+    df_growth_ou <- df_growth %>% 
+      group_by(operatingunit, hfr_pd) %>% 
+      summarize_at(vars(hfr_results_ipol, mer_targets, is_datim_site),sum, na.rm = TRUE) %>% 
+      ungroup() %>% 
+      group_by(operatingunit) %>% 
+      mutate(delta = (hfr_results_ipol/lag(hfr_results_ipol, order_by = hfr_pd)) -1) %>% 
+      ungroup() %>% 
+      mutate(ou_sitecount = paste0(operatingunit, " (", comma(is_datim_site), ")")) %>% 
+      filter(hfr_pd != 4)
     
+    df_growth_ou <- df_growth_ou %>% 
+      left_join(df_pds)
     
+    df_growth_ou %>% 
+      mutate(hfr_pd = str_pad(hfr_pd, 2, pad = "0")) %>% 
+      ggplot(aes(hfr_pd_date_max, delta, group = operatingunit)) +
+      geom_hline(yintercept = 0) +
+      geom_vline(xintercept = pandemic_date$date, size = 2, color = "gray70")+
+      geom_point(size = 4, color = heatmap_pal[10]) +
+      geom_path(size = .9, color = heatmap_pal[10]) +
+      # geom_area(alpha = .3, color = heatmap_pal[10], fill = heatmap_pal[10]) +
+      expand_limits(y = c(-.15, .15)) +
+      facet_wrap(~fct_reorder(ou_sitecount, mer_targets, .desc = TRUE)) +
+      scale_y_continuous(label = percent) +
+      labs(x = NULL, y = NULL) +
+      si_style()
+      
+    
+    df_growth_ou %>% 
+      filter(operatingunit == "Tanzania") %>% 
+      mutate(hfr_pd = str_pad(hfr_pd, 2, pad = "0")) %>% 
+      ggplot(aes(hfr_pd_date_max, delta, group = operatingunit)) +
+      geom_hline(yintercept = 0) +
+      geom_vline(xintercept = pandemic_date$date, size = 2, color = "gray70")+
+      geom_point(size = 4, color = heatmap_pal[10]) +
+      geom_path(size = .9, color = heatmap_pal[10]) +
+      expand_limits(y = c(-.15, .15)) +
+      scale_y_continuous(label = percent) +
+      labs(x = NULL, y = NULL) +
+      si_style()
   
   
