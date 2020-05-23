@@ -40,6 +40,15 @@ library(RColorBrewer)
   #data created in 12_align_tx
     df_tx <- vroom(here(dataout, "HFR_FY20_TXCURR.csv"))
 
+  #import large sites flag 02_datim_flags
+    df_datim_wgts <- list.files(dataout, "DATIM_FLAGS_[[:digit:]]+\\.csv", full.names = TRUE) %>% 
+      vroom(col_types = c(.default = "d",
+                          orgunituid = "c",
+                          indicator = "c",
+                          operatingunit = "c",
+                          mech_code = "c",
+                          fy = "c")) %>% 
+      filter(indicator == "TX_CURR")
 
 
 # CLEAN UP ----------------------------------------------------------------
@@ -51,6 +60,10 @@ library(RColorBrewer)
                                     "Democratic Republic of the Congo" = "DRC",
                                     "Dominican Republic" = "DR",
                                     "Western Hemisphere Region" = "WHR")) 
+    
+  #covert mech_code to character
+    df_tx <- df_tx %>% 
+      mutate(mech_code = as.character(mech_code))
   
   #align dates with hfr_pds
     df_pds <- hfr_identify_pds(2020) %>% 
@@ -59,8 +72,7 @@ library(RColorBrewer)
                 hfr_pd_date_max = max(date)) %>% 
       ungroup() 
       # mutate(hfr_pd = (2020 + hfr_pd/100) %>% as.character)
-      
-  
+    
   #extract mmd
     df_mmd <- df_tx %>% 
       select(-mer_results, -mer_targets) %>% 
@@ -119,6 +131,17 @@ library(RColorBrewer)
 # EXTRAPOLATE -------------------------------------------------------------
 
   #TBD
+    
+
+# FLAG HIGH VOLUME (TARGET) SITES -----------------------------------------
+
+  #add in flag for large sites
+    df_datim_wgts <- df_datim_wgts  %>% 
+      select(orgunituid, mech_code, 
+             impflag_targets, impflag_results, impflag_both)
+    
+  #binding flag onto tx_curr data
+    df_txcurr <- left_join(df_txcurr, df_datim_wgts)
     
 # CALCULATE COMPLETENESS --------------------------------------------------
     
@@ -199,18 +222,43 @@ library(RColorBrewer)
 
 # SITE COUNT PER PERIOD ---------------------------------------------------
 
+      
       df_rpt_sites <- df_txcurr %>% 
-        group_by(operatingunit, hfr_pd) %>% 
+        mutate(site_type = ifelse(impflag_both == 1, "Large", "Small")) %>% 
+        group_by(operatingunit, hfr_pd, site_type) %>% 
         summarise_at(vars(mer_targets, has_hfr_reporting, is_datim_site), sum, na.rm = TRUE) %>% 
         ungroup() %>% 
         mutate(no_reporting = has_hfr_reporting- is_datim_site,
                share_reporting = has_hfr_reporting/is_datim_site,
                share_noreporting = share_reporting-1,
+               type_sitecount = paste0(site_type, " (", comma(is_datim_site), ")"),
                ou_sitecount = paste0(operatingunit, " (", comma(is_datim_site), ")")) %>% 
         left_join(df_pds) %>% 
         mutate(date_lab = paste0(format.Date(hfr_pd_date_max, "%b %d"), "\n(",
                                  str_pad(hfr_pd, 2, pad = "0"), ")"),
                date_lab = fct_reorder(date_lab, hfr_pd_date_max))
+      
+      
+      df_rpt_sites %>% 
+        filter(operatingunit == "Tanzania") %>% 
+        ggplot(aes(date_lab, share_reporting)) +
+        geom_col(fill = heatmap_pal[10]) +
+        geom_col(aes(y = 1), fill = NA, color = heatmap_pal[10]) +
+        geom_hline(yintercept = 0) +
+        geom_text(aes(y = 1.15, label = comma(has_hfr_reporting)), color = "gray30",
+                  family = "Source Sans Pro") +
+        expand_limits(y = 1.3) +
+        facet_grid(type_sitecount ~., switch = "y") +
+        scale_y_continuous(label = percent) +
+        labs(x = NULL, y = "share of sites reporting",
+             title = "SITES REPORTING EACH PERIOD BY SITE TYPE",
+             subtitle = "large sites defined as those contributing 80% of the country's results or targets",
+             caption = "Note: Completeness derived by comparing HFR reporting against sites with DATIM results/targets"
+        ) +
+        si_style_nolines() +
+        theme(plot.caption = element_text(color = "gray30"),
+              strip.placement = "outside",
+              strip.text = element_text(hjust = .5, face = "bold"))  
       
       df_rpt_sites %>% 
         ggplot(aes(date_lab)) +
