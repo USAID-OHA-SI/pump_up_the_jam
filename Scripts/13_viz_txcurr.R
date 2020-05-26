@@ -18,6 +18,8 @@ library(glitr)
 library(patchwork)
 library(RColorBrewer)
 library(COVIDutilities)
+library(rnaturalearth)
+library(sf)
 
 
 
@@ -53,7 +55,13 @@ library(COVIDutilities)
                           fy = "c")) %>% 
       filter(indicator == "TX_CURR")
 
+  #org hierarchy
+    df_orgheirarchy <- list.files(datain, "org", full.names = TRUE) %>% 
+      read_csv()
 
+  #covid
+    df_covid <- COVIDutilities::pull_jhu_covid()
+    
 # CLEAN UP ----------------------------------------------------------------
 
   #clean up
@@ -537,5 +545,109 @@ library(COVIDutilities)
       scale_y_continuous(label = percent) +
       labs(x = NULL, y = NULL) +
       si_style()
-  
+    
+
+# MAP ---------------------------------------------------------------------
+
+      df_repgap <- df_txcurr %>% 
+        filter(hfr_pd >=4) 
+      
+      # maxpd_prior <- df_repgap %>% 
+      #   filter(hfr_pd < 7) %>% 
+      #   distinct(hfr_pd) %>% 
+      #   pull() %>% 
+      #   length()
+      # 
+      # maxpd_post <- df_repgap %>% 
+      #   filter(hfr_pd >= 7) %>% 
+      #   distinct(hfr_pd) %>% 
+      #   pull() %>% 
+      #   length()
+      
+      df_repgap <- df_repgap %>% 
+        mutate(type = ifelse(hfr_pd >= 7, "post", "pre")) %>% 
+        group_by(operatingunit, countryname, orgunituid,
+                 mech_code, type) %>% 
+        summarise(has_hfr_reporting = sum(has_hfr_reporting, na.rm = TRUE),
+                  is_datim_site = max(is_datim_site, na.rm = TRUE)) %>% 
+        ungroup()
+      
+      df_repgap <- df_repgap %>% 
+        mutate(reporting_rate = has_hfr_reporting/is_datim_site,
+               status = case_when(reporting_rate <= .25 ~ paste0(type, "-low"),
+                                  reporting_rate < .75 ~ paste0(type, "-med"),
+                                  TRUE ~ paste0(type, "-high"))) %>% 
+        select(-has_hfr_reporting, -is_datim_site, -reporting_rate)  %>% 
+        spread(type, status) %>% 
+        unite(position, c(pre, post), sep = ", ")
+        
+      
+    # range <- c("low", "med",  "high")
+    # bivar_pal <- c("#e8e8e8", "#5ac8c8", "#ace4e4", 
+    #                "#be64ac", "#3b4994", "#8c62aa",
+    #                "#dfb0d6", "#5698b9", "#a5add3")
+    # 
+    # bivar_options <- 
+    #   tibble(pre = paste0("pre-", range), 
+    #          post = paste0("post-", range)) %>% 
+    #   complete(post, nesting(pre)) %>% 
+    #   unite(position, c(pre, post), sep = ", ") %>%
+    #   pull()
+    
+    # paste(bivar_options, "=", bivar_pal)
+    bivar_map <- c("pre-high, post-high" = "#e8e8e8",
+                   "pre-low, post-high" = "#5ac8c8",
+                   "pre-med, post-high" = "#ace4e4",
+                   "pre-high, post-low" = "#be64ac",
+                   "pre-low, post-low" = "#3b4994",
+                   "pre-med, post-low" = "#8c62aa",
+                   "pre-high, post-med" = "#dfb0d6",
+                   "pre-low, post-med" = "#5698b9",
+                   "pre-med, post-med" = "#a5add3")
+    
+    
+    df_repgap <- df_repgap %>% 
+      left_join(iso_map, by = c("countryname" = "operatingunit")) %>% 
+      select(-regional)
+    
+    df_repgap <- df_orgheirarchy %>% 
+      select(orgunituid, latitude, longitude) %>% 
+      left_join(df_repgap, .)
+    
+
+    
+    world <- ne_countries()
+    crosswalk <- tibble(countryname_ne = world$admin, iso = world$iso_a3)
+      rm(world)
+    
+
+
+
+    
+    ctry_sel <- "Nigeria"
+    
+    iso_sel <- iso_map %>%
+      filter(operatingunit == ctry_sel) %>% 
+      pull(iso)
+    
+    ctry_sel_ne <- crosswalk %>% 
+      filter(iso == iso_sel) %>% 
+      pull(countryname_ne)
+    
+    ctry_map <- ne_countries(country = ctry_sel_ne, scale = "medium", returnclass = "sf")
+    admin1_map <- ne_states(country = ctry_sel_ne, returnclass = "sf")
+    
+    ctry_map %>% 
+      ggplot() +
+      geom_sf(fill = "gray90", size = .9) +
+      geom_sf(data = admin1_map, fill = NA) +
+      geom_point(data = df_repgap %>% filter(countryname == ctry_sel),
+                 aes(longitude, latitude, fill = position),
+                 #size = 2, 
+                 shape = 21, color = "gray60", na.rm = TRUE) +
+      scale_fill_manual(values = bivar_map) +
+      labs(x = NULL, y = NULL) +
+      theme_void() +
+      theme(text = element_text(family = "Source Sans Pro"),
+            legend.position = "none")
   
