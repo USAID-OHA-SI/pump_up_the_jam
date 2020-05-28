@@ -3,7 +3,7 @@
 ## LICENSE:  MIT
 ## PURPOSE:  review and visualize TX_CURR HFR data
 ## DATE:     2020-05-13
-## UPDATED:  2020-05-20
+## UPDATED:  2020-05-28
 
 
 # DEPENDENCIES ------------------------------------------------------------
@@ -39,6 +39,28 @@ library(sf)
   
   posneg_pal <- brewer.pal(3, "BrBG")
 
+  # range <- c("low", "med",  "high")
+  # bivar_pal <- c("#e8e8e8", "#5ac8c8", "#ace4e4", 
+  #                "#be64ac", "#3b4994", "#8c62aa",
+  #                "#dfb0d6", "#5698b9", "#a5add3")
+  # 
+  # bivar_options <- 
+  #   tibble(pre = paste0("pre-", range), 
+  #          post = paste0("post-", range)) %>% 
+  #   complete(post, nesting(pre)) %>% 
+  #   unite(position, c(pre, post), sep = ", ") %>%
+  #   pull()
+  
+  # paste(bivar_options, "=", bivar_pal)
+  bivar_map <- c("pre-high, post-high" = "#e8e8e8",
+                 "pre-low, post-high" = "#5ac8c8",
+                 "pre-med, post-high" = "#ace4e4",
+                 "pre-high, post-low" = "#be64ac",
+                 "pre-low, post-low" = "#3b4994",
+                 "pre-med, post-low" = "#8c62aa",
+                 "pre-high, post-med" = "#dfb0d6",
+                 "pre-low, post-med" = "#5698b9",
+                 "pre-med, post-med" = "#a5add3")
   
   pandemic_date <- who_pandemic() %>% pull(date)
 
@@ -63,6 +85,10 @@ library(sf)
 
   #covid
     df_covid <- COVIDutilities::pull_jhu_covid()
+    
+  #countyr names for mapping
+    world <- ne_countries()
+    
     
 # CLEAN UP ----------------------------------------------------------------
 
@@ -120,6 +146,11 @@ library(sf)
       filter(date == min(date)) %>% 
       ungroup() %>% 
       select(countryname, date)
+    
+  #crosswalk for mapping
+    df_crosswalk <- tibble(countryname_ne = world$admin, iso = world$iso_a3)
+    
+    rm(world)
 
 # INTERPOLATE -------------------------------------------------------------
 
@@ -552,7 +583,7 @@ library(sf)
         filter(countryname == ctry_sel) %>% 
         pull()
       
-      df_trends_ctry %>% 
+      v <- df_trends_ctry %>% 
         filter(countryname == ctry_sel) %>% 
         ggplot(aes(hfr_pd_date_max, hfr_results)) +
         geom_blank(aes(y = max_range), na.rm = TRUE) +
@@ -565,9 +596,6 @@ library(sf)
                    family = "Source Sans Pro", color = heatmap_pal[9], na.rm = TRUE) +
         geom_text(aes(x = pandemic_date -1, y = max(max_range) *.9), 
                   label = "WHO declared emergency", hjust = 1.1, na.rm = TRUE,
-                  family = "Source Sans Pro Light", size = 2, color = "gray70") +
-        geom_text(aes(x = ctry_case10, y = max(max_range) *.9), 
-                  label = "10th case", hjust = -.2, na.rm = TRUE,
                   family = "Source Sans Pro Light", size = 2, color = "gray70") +
         geom_hline(aes(yintercept = mer_results), linetype = "dashed", color = "gray20", na.rm = TRUE) +
         scale_y_continuous(label = comma, expand = c(-0, 0)) +
@@ -582,6 +610,16 @@ library(sf)
               axis.text = element_text(size = 7),
               axis.title = element_text(size = 7),
               strip.text = element_text(size = 7, hjust = .50))
+      
+      if(length(ctry_case10) > 0){
+       v <-  v + 
+          geom_text(aes(x = ctry_case10, y = max(max_range) *.9),
+                    label = "10th case", hjust = -.2, na.rm = TRUE,
+                    family = "Source Sans Pro Light", size = 2, color = "gray70")
+      }
+      
+      return(v)
+      
     }
      
       
@@ -630,144 +668,222 @@ library(sf)
     
     viz_growth <- function(ctry_sel){
       
-      site_cnt<- df_growth_ou %>% 
-        filter(countryname == ctry_sel) %>%
-        pull(is_datim_site) %>% 
-        max()
+      site_cnt <- df_growth_ou %>% 
+        filter(countryname == ctry_sel) 
+      
+      if(nrow(site_cnt) > 0) {
         
+        site_cnt <- site_cnt%>%
+          pull(is_datim_site) %>% 
+          max()
         
-      df_growth_ou %>% 
-        filter(countryname == ctry_sel) %>% 
-        mutate(hfr_pd = str_pad(hfr_pd, 2, pad = "0"),
-               lab = paste0(format.Date(hfr_pd_date_max, "%b %d"), " (",
-                            str_pad(hfr_pd, 2, pad = "0"), ")", 
-                            ":   ", percent(delta, .1))) %>% 
-        ggplot(aes(1, fct_rev(hfr_pd))) +
-        geom_point(color = NA, na.rm = TRUE) +
-        geom_text(aes(label =lab), size = 4, color = "gray30",
-                  family = "Source Sans Pro") +
-        si_style_nolines() +
-        labs(x = NULL, y = NULL, 
-             title = "Treatment Growth Each Period",
-             subtitle = paste0("only sites reporting in all three periods (",
-                               comma(site_cnt),")"),
-             caption = "interpolated data") +
-        theme(axis.text.y = element_blank(),
-              axis.text.x = element_blank(),
-              plot.title = element_text(size = 11, color = "gray30"),
-              plot.subtitle = element_text(size = 7),
-              plot.caption = element_text(size = 5),
-              strip.text = element_text(size = 7, hjust = .50))
+        v <- df_growth_ou %>% 
+          filter(countryname == ctry_sel) %>% 
+          mutate(hfr_pd = str_pad(hfr_pd, 2, pad = "0"),
+                 lab = paste0(format.Date(hfr_pd_date_max, "%b %d"), " (",
+                              str_pad(hfr_pd, 2, pad = "0"), ")", 
+                              ":   ", percent(delta, .1))) %>% 
+          ggplot(aes(1, fct_rev(hfr_pd))) +
+          geom_point(color = NA, na.rm = TRUE) +
+          geom_text(aes(label =lab), size = 4, color = "gray30",
+                    family = "Source Sans Pro") +
+          si_style_nolines() +
+          labs(x = NULL, y = NULL, 
+               title = "Treatment Growth Each Period",
+               subtitle = paste0("only sites reporting in all three periods (",
+                                 comma(site_cnt),")"),
+               caption = "interpolated data") +
+          theme(axis.text.y = element_blank(),
+                axis.text.x = element_blank(),
+                plot.title = element_text(size = 11, color = "gray30"),
+                plot.subtitle = element_text(size = 7),
+                plot.caption = element_text(size = 5),
+                strip.text = element_text(size = 7, hjust = .50))
+      } else {
+       v <- NULL
+      }
+      
+      return(v)
     }
     
     
 
 # MAP ---------------------------------------------------------------------
 
-      df_repgap <- df_txcurr %>% 
-        filter(hfr_pd >=4) 
+    df_repgap <- df_txcurr %>% 
+      filter(hfr_pd >=4) 
       
-      # maxpd_prior <- df_repgap %>% 
-      #   filter(hfr_pd < 7) %>% 
-      #   distinct(hfr_pd) %>% 
-      #   pull() %>% 
-      #   length()
-      # 
-      # maxpd_post <- df_repgap %>% 
-      #   filter(hfr_pd >= 7) %>% 
-      #   distinct(hfr_pd) %>% 
-      #   pull() %>% 
-      #   length()
+    df_repgap <- df_repgap %>%
+      mutate(pd = ifelse(hfr_pd >= 7, "post", "pre")) %>%
+      group_by(operatingunit, countryname, orgunituid,
+               mech_code, pd) %>%
+      summarise(has_hfr_reporting = sum(has_hfr_reporting, na.rm = TRUE),
+                is_datim_site = sum(is_datim_site, na.rm = TRUE)) %>%
+      ungroup()
       
-      df_repgap <- df_repgap %>% 
-        mutate(type = ifelse(hfr_pd >= 7, "post", "pre")) %>% 
-        group_by(operatingunit, countryname, orgunituid,
-                 mech_code, type) %>% 
-        summarise(has_hfr_reporting = sum(has_hfr_reporting, na.rm = TRUE),
-                  is_datim_site = sum(is_datim_site, na.rm = TRUE)) %>% 
-        ungroup()
-      
-      df_repgap <- df_repgap %>% 
-        mutate(reporting_rate = has_hfr_reporting/is_datim_site,
-               status = case_when(reporting_rate <= .25 ~ paste0(type, "-low"),
-                                  reporting_rate < .75 ~ paste0(type, "-med"),
-                                  TRUE ~ paste0(type, "-high"))) %>% 
-        select(-has_hfr_reporting, -is_datim_site, -reporting_rate)  %>% 
-        spread(type, status) %>% 
-        unite(position, c(pre, post), sep = ", ")
-        
-      
-    # range <- c("low", "med",  "high")
-    # bivar_pal <- c("#e8e8e8", "#5ac8c8", "#ace4e4", 
-    #                "#be64ac", "#3b4994", "#8c62aa",
-    #                "#dfb0d6", "#5698b9", "#a5add3")
-    # 
-    # bivar_options <- 
-    #   tibble(pre = paste0("pre-", range), 
-    #          post = paste0("post-", range)) %>% 
-    #   complete(post, nesting(pre)) %>% 
-    #   unite(position, c(pre, post), sep = ", ") %>%
-    #   pull()
-    
-    # paste(bivar_options, "=", bivar_pal)
-    bivar_map <- c("pre-high, post-high" = "#e8e8e8",
-                   "pre-low, post-high" = "#5ac8c8",
-                   "pre-med, post-high" = "#ace4e4",
-                   "pre-high, post-low" = "#be64ac",
-                   "pre-low, post-low" = "#3b4994",
-                   "pre-med, post-low" = "#8c62aa",
-                   "pre-high, post-med" = "#dfb0d6",
-                   "pre-low, post-med" = "#5698b9",
-                   "pre-med, post-med" = "#a5add3")
-    
-    
-    df_repgap <- df_repgap %>% 
-      left_join(iso_map, by = c("countryname" = "operatingunit")) %>% 
+    df_repgap <- df_repgap %>%
+      left_join(iso_map, by = c("countryname" = "operatingunit")) %>%
       select(-regional)
+    
+    df_repgap <- df_orgheirarchy %>%
+      select(orgunituid, latitude, longitude) %>%
+      left_join(df_repgap, .)
+    
+    df_repgap <- left_join(df_repgap, df_crosswalk) %>% 
+      select(-iso)
+      
+    # df_repgap <- df_repgap %>% 
+    #   left_join(iso_map, by = c("countryname" = "operatingunit")) %>% 
+    #   select(-regional)
     
     df_repgap <- df_orgheirarchy %>% 
       select(orgunituid, latitude, longitude) %>% 
       left_join(df_repgap, .)
     
 
-    world <- ne_countries()
-    crosswalk <- tibble(countryname_ne = world$admin, iso = world$iso_a3)
-      rm(world)
-    
-    df_repgap <- left_join(df_repgap, crosswalk)
-
 
     viz_rpt_map <- function(ctry_sel){
-      df_repgap_ctry <- df_repgap %>% 
-        filter(countryname == ctry_sel)
       
-      ctry_sel_ne <- unique(df_repgap_ctry$countryname_ne)
+      #filter to select countyr
+        df_repgap_ctry <- df_repgap %>% 
+          filter(countryname == ctry_sel)
       
-      ctry_map <- ne_countries(country = ctry_sel_ne, scale = "medium", returnclass = "sf")
-      admin1_map <- ne_states(country = ctry_sel_ne, returnclass = "sf")
+      #id country name from natural earth
+        ctry_sel_ne <- unique(df_repgap_ctry$countryname_ne)
       
-      ctry_map %>% 
-        ggplot() +
-        geom_sf(data = admin1_map, fill = "gray90", color = "white") +
-        geom_sf(fill = NA, size = .5) +
-        geom_point(data = df_repgap_ctry,
-                   aes(longitude, latitude, fill = position),
-                   #size = 2, 
-                   shape = 21, color = "gray60", 
-                   na.rm = TRUE) +
-        scale_fill_manual(values = bivar_map) +
-        labs(x = NULL, y = NULL,
-             title = "Identifying Reporting Gaps",
-             subtitle = "problem areas = dark pink and purple") +
-        # theme_void() +
-        si_style_nolines() +
-        theme(text = element_text(family = "Source Sans Pro"),
-              legend.position = "none",
-              plot.title = element_text(size = 11, color = "gray30"),
-              plot.subtitle = element_text(size = 7),
-              axis.text.x = element_blank(),
-              axis.text.y = element_blank(),
-              panel.grid = element_blank())
+      #country and admin1 borders
+        ctry_adm0 <- ne_countries(country = ctry_sel_ne, scale = 'medium', returnclass = 'sf')
+        
+        ctry_adm1 <- ne_states(country = ctry_sel_ne, returnclass = 'sf') 
+        
+      #deal with SA island
+        if(ctry_sel == "South Africa") {
+          
+          ctry_adm0 <- ctry_adm0 %>% 
+            st_transform(st_crs(4326)) %>% 
+            st_crop(c(ymin = -35.603719,
+                      ymax = -21.718680, 
+                      xmax = 34.804688, 
+                      xmin = 13.886719))
+          
+          
+          ctry_adm1 <- ctry_adm1 %>% 
+            st_transform(st_crs(4326)) %>% 
+            st_crop(c(ymin = -35.603719,
+                      ymax = -21.718680, 
+                      xmax = 34.804688, 
+                      xmin = 13.886719))
+        }
+      #transfrom
+        ctry_adm0 <- ctry_adm0 %>% 
+          st_transform(crs = st_crs(3857)) %>% 
+          st_as_sf()
+        
+        ctry_adm1 <- ctry_adm1 %>% 
+          st_transform(crs = st_crs(3857)) %>% 
+          st_as_sf()
+        
+       
+      
+      #create hex grid for country
+        ctry_hex <- ctry_adm0 %>% 
+          st_make_grid(what = 'polygons', cellsize = 30000, square = F) %>% 
+          st_as_sf() 
+        
+      #create id for merging
+        ctry_hex <- mutate(ctry_hex, id = row_number())
+      
+      #limit dataset to country, ensure coords exist 
+        df_mapdata <- df_repgap %>% 
+          filter(countryname == ctry_sel) %>% 
+          filter_at(vars(latitude, longitude), any_vars(!is.na(.)))
+        
+      #transform from decimal degrees to projection in meters
+        df_mapdata <- df_mapdata %>% 
+          st_as_sf(coords = c("longitude", "latitude"),
+                   crs = st_crs(4326)) %>% 
+          st_transform(crs = st_crs(3857))
+     
+        
+      if(nrow(df_mapdata) > 0){
+        
+      #bind hex ids onto data for join post aggregation
+        df_mapdata <- st_join(df_mapdata, ctry_hex, join = st_intersects)
+        
+      #clip hexes to country border
+        suppressWarnings(
+          ctry_hex <- st_intersection(ctry_hex, ctry_adm0) 
+        )
+      
+      #how many sites didn't map to a bin?
+      # df_mapdata %>% 
+      #   select(-geometry) %>% 
+      #   as_tibble() %>% 
+      #   distinct(orgunituid, id) %>% 
+      #   count(is.na(id))
+      
+      #remove geometry and aggregate to calc hex completeness
+        df_mapdata <- df_mapdata %>% 
+          select(-geometry) %>% 
+          as_tibble() %>% 
+          group_by(countryname, id, pd) %>% 
+          summarise_at(vars(has_hfr_reporting, is_datim_site), sum, na.rm = TRUE) %>% 
+          ungroup()
+      
+      #create completeness pre/post and reshape to get one variable
+        df_mapdata <- df_mapdata %>% 
+          mutate(reporting_rate = has_hfr_reporting/is_datim_site,
+                 status = case_when(reporting_rate <= .25 ~ paste0(pd, "-low"),
+                                    reporting_rate < .75 ~ paste0(pd, "-med"),
+                                    TRUE ~ paste0(pd, "-high"))) %>% 
+          select(-has_hfr_reporting, -is_datim_site, -reporting_rate)  %>% 
+          spread(pd, status) %>% 
+          unite(position, c(pre, post), sep = ", ")
+      
+      #join aggregated data to hex
+        df_mapdata <- left_join(ctry_hex, df_mapdata, by = "id")
+        
+      #hex map
+        m <- df_mapdata %>% 
+          filter(!is.na(id)) %>% 
+          ggplot() +
+          geom_sf(aes(fill = position), color = 'gray80') +
+          geom_sf(data = ctry_adm1, fill = NA, size = 1, color = "gray60") +
+          scale_fill_manual(values = bivar_map) +
+          si_style_nolines() +
+          labs(x = NULL, y = NULL,
+               title = "Identifying Reporting Gaps",
+               subtitle = "problem areas = dark pink and purple") +
+          theme_void() +
+          theme(text = element_text(family = "Source Sans Pro"),
+                legend.position = "none",
+                plot.title = element_text(size = 11, color = "gray30"),
+                plot.subtitle = element_text(size = 7),
+                axis.text.x = element_blank(),
+                axis.text.y = element_blank(),
+                panel.grid = element_blank())
+        
+      } else {
+         m <- ctry_hex %>% 
+           ggplot() +
+           geom_sf(color = 'gray80', fill = NA) +
+           geom_sf(data = ctry_adm1, fill = NA, size = 1, color = "gray60") +
+           scale_fill_manual(values = bivar_map) +
+           si_style_nolines() +
+           labs(x = NULL, y = NULL,
+                title = "Identifying Reporting Gaps",
+                subtitle = "no sites with coordinates") +
+           theme_void() +
+           theme(text = element_text(family = "Source Sans Pro"),
+                 legend.position = "none",
+                 plot.title = element_text(size = 11, color = "gray30"),
+                 plot.subtitle = element_text(size = 7),
+                 axis.text.x = element_blank(),
+                 axis.text.y = element_blank(),
+                 panel.grid = element_blank())
+      }
+        
+        return(m)
     }
     
     
@@ -779,9 +895,9 @@ library(sf)
     lgnd <- image_read("Images/bivar_legend.png")
    
     
-    ctry_sel <- "Tanzania"
-    
     viz_combo <- function(ctry_sel){
+      
+      print(ctry_sel)
       
       p1 <- viz_trends(ctry_sel)
       p2 <- viz_rpt_rates(ctry_sel)    
@@ -792,23 +908,39 @@ library(sf)
       # 
       p4 <- viz_growth(ctry_sel)
       
+      if(is.null(p4))
+        p4 <- plot_spacer()
+      
       # (p1 + p2 & theme(strip.placement = NULL))/ (p3 + p4 + plot_spacer())
   
       # p3 + (p1 / (p2  + p4 & theme(strip.placement = NULL))) +
       combo <- p3 + (p1 / (p2 + p4  & theme(strip.placement = NULL))) +
         plot_annotation(
           title = paste(toupper(ctry_sel), "| ASSESSING COVID’S IMPACT THROUGH HFR"),
-          caption = 'HFR DATA | NOT FOR DISTRIBUTION'
+          caption = 'HFR DATA | NOT FOR DISTRIBUTION OUTSIDE USAID'
         ) & 
         theme(text = element_text(family = "Source Sans Pro"),
-              plot.title = element_text(face = "bold"))
+              plot.title = element_text(face = "bold"),
+              plot.caption = element_text(color = "gray30"))
       
-      ggsave("Images/HFR_ReportingTrends.png", height = 5.625, width = 10)
+      ctry_sel <- str_remove_all(ctry_sel, " ")
+      
+      filename <- paste0("HFR_ReportingTrends_", ctry_sel, ".png")
+      
+      ggsave(filename, path = "Images", dpi = 330, height = 5.625, width = 10)
       
       return(combo)
       
     
     }
     
-    viz_combo("Tanzania")
+    viz_combo("South Africa")
+    
+
+  ctrys <- df_txcurr %>% 
+    filter(hfr_pd == 1) %>% 
+    count(countryname, wt = mer_targets, sort = TRUE) %>% 
+    pull(countryname)
+  
+  walk(ctrys[1:12], viz_combo)
   
