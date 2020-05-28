@@ -20,8 +20,8 @@ library(RColorBrewer)
 library(COVIDutilities)
 library(rnaturalearth)
 library(sf)
-library(magick)
-library(grid)
+# library(magick)
+# library(grid)
 
 
 
@@ -113,6 +113,13 @@ library(grid)
       filter(is_datim_site == TRUE)
     
     
+  #covid markers
+    df_covid_case10 <- df_covid %>% 
+      filter(tenth_case == 1) %>% 
+      group_by(countryname) %>% 
+      filter(date == min(date)) %>% 
+      ungroup() %>% 
+      select(countryname, date)
 
 # INTERPOLATE -------------------------------------------------------------
 
@@ -127,7 +134,8 @@ library(grid)
   #id sites that need to be dropped (need min of 2pds for interpolation)
     df_nonipol_sites <- df_txcurr %>%
       filter(pds_reported < 2) %>% 
-      mutate(is_ipol = FALSE)
+      mutate(hfr_results_ipol = hfr_results, 
+             is_ipol = FALSE)
     
   #interpolate
     df_txcurr <- df_txcurr %>%
@@ -256,28 +264,36 @@ library(grid)
         df_rpt_sites %>% 
           filter(countryname == ctry_sel) %>% 
           ggplot(aes(hfr_pd_date_max, share_reporting)) +
-          geom_vline(xintercept = pandemic_date, color = "gray80", size = 2, na.rm = TRUE) +
-          geom_vline(xintercept = df_covid_case10 %>% filter(countryname == ctry_sel) %>% pull(), 
-                     color = "gray70", size = 2, na.rm = TRUE) +
-          geom_col(fill = heatmap_pal[10], alpha = .8) +
-          geom_col(aes(y = 1), fill = NA, color = heatmap_pal[10]) +
+          # geom_vline(xintercept = pandemic_date, color = "gray80", size = 2, na.rm = TRUE) +
+          # geom_vline(xintercept = df_covid_case10 %>% filter(countryname == ctry_sel) %>% pull(), 
+          #            color = "gray70", size = 2, na.rm = TRUE) +
+          geom_col(aes(y = 1), fill = grey10k, alpha = 0.75) +
+          geom_col(aes(fill = ifelse(hfr_pd_date_max > pandemic_date, "#b1c7b3", "#d8e3d8"))) +
+          geom_errorbar(aes(ymin = share_reporting, ymax = share_reporting), size=0.5, 
+                        # width = 0.8,
+                        colour = grey50k) +
           geom_hline(yintercept = 0) +
           geom_text(aes(y = 1.15, label = comma(has_hfr_reporting)), color = "gray30",
-                    family = "Source Sans Pro") +
+                    size = 3, family = "Source Sans Pro") +
           expand_limits(y = 1.3) +
           facet_grid(type_sitecount ~.) +
           # facet_grid(type_sitecount ~., switch = "y") +
+          scale_fill_identity() +
           scale_y_continuous(label = percent) +
           scale_x_date(date_breaks = "4 weeks", date_labels = "%b %d") +
           labs(x = NULL, y = "share of sites reporting",
-               title = "SITES REPORTING EACH PERIOD BY SITE TYPE",
-               subtitle = "large sites = contributing 80% of the country's results/targets",
-               caption = "Note: Completeness derived by comparing HFR reporting against sites with DATIM results/targets"
+               title = "Sites Reporting Each Period",
+               subtitle = "large sites = contributing 80% of all results/targets",
+               caption = "Completeness derived by comparing HFR reporting against sites with DATIM results/targets"
           ) +
           si_style_nolines() +
-          theme(plot.caption = element_text(color = "gray30"),
-                #strip.placement = "outside",
-                strip.text = element_text(hjust = .50) #, face = "bold")
+          theme(#strip.placement = "outside",
+                plot.title = element_text(size = 11, color = "gray30"),
+                plot.subtitle = element_text(size = 7),
+                plot.caption = element_text(size = 5),
+                axis.text = element_text(size = 7),
+                axis.title = element_text(size = 7),
+                strip.text = element_text(size = 7, hjust = .50) #, face = "bold")
                 )  
       }
       
@@ -529,13 +545,6 @@ library(grid)
         mutate(max_range = max(hfr_results, mer_results, 50/1.2, na.rm = TRUE) * 1.2) %>% 
         ungroup()
       
-    #covid markers
-      df_covid_case10 <- df_covid %>% 
-        filter(tenth_case == 1) %>% 
-        group_by(countryname) %>% 
-        filter(date == min(date)) %>% 
-        ungroup() %>% 
-        select(countryname, date)
       
     viz_trends <- function(ctry_sel) {
       
@@ -547,28 +556,32 @@ library(grid)
         filter(countryname == ctry_sel) %>% 
         ggplot(aes(hfr_pd_date_max, hfr_results)) +
         geom_blank(aes(y = max_range), na.rm = TRUE) +
+        geom_vline(xintercept = pandemic_date, color = "gray80", size = 1.5, na.rm = TRUE) +
+        geom_vline(xintercept = ctry_case10, color = "gray70", size = 1.5, na.rm = TRUE) +
         geom_hline(aes(yintercept = 0), color = "gray30", na.rm = TRUE) +
-        geom_vline(xintercept = pandemic_date, color = "gray80", size = 2, na.rm = TRUE) +
-        geom_vline(xintercept = ctry_case10, color = "gray70", size = 2, na.rm = TRUE) +
         geom_area(color = heatmap_pal[9], fill = heatmap_pal[9], size = 1, alpha = .2, na.rm = TRUE) +
-        geom_label(aes(y = 0, label = percent(completeness, 1)), vjust = -.2,
-                   label.size = 0,
+        geom_label(aes(y = 0, label = percent(completeness, 1)), vjust = -.6,
+                   label.size = 0, size = 3,
                    family = "Source Sans Pro", color = heatmap_pal[9], na.rm = TRUE) +
         geom_text(aes(x = pandemic_date -1, y = max(max_range) *.9), 
-                  label = "WHO declared emergency", hjust = 1, na.rm = TRUE,
-                  family = "Source Sans Pro Light", size = 3.4, color = "gray70") +
+                  label = "WHO declared emergency", hjust = 1.1, na.rm = TRUE,
+                  family = "Source Sans Pro Light", size = 2, color = "gray70") +
         geom_text(aes(x = ctry_case10, y = max(max_range) *.9), 
                   label = "10th case", hjust = -.2, na.rm = TRUE,
-                  family = "Source Sans Pro Light", size = 3.4, color = "gray70") +
+                  family = "Source Sans Pro Light", size = 2, color = "gray70") +
         geom_hline(aes(yintercept = mer_results), linetype = "dashed", color = "gray20", na.rm = TRUE) +
         scale_y_continuous(label = comma, expand = c(-0, 0)) +
         labs(x = NULL, y = NULL, color = "Completeness (0% - 100%)",
-             title = "CURRENT ON TREATMENT TRENDS PRE/POST COVID",
+             title = "Current on Treatment Trends Pre/Post COVID",
              subtitle = "site completeness indicated at base",
-             caption = "notes: dotted line identifies FY20Q1 reported value") +
+             caption = "dotted line identifies FY20Q1 reported value") +
         si_style_ygrid() +
-        theme(strip.text = element_text(face = "bold"),
-              legend.title = element_text(family = "Source Sans Pro", color = "gray30"))
+        theme(plot.title = element_text(size = 11, color = "gray30"),
+              plot.subtitle = element_text(size = 7),
+              plot.caption = element_text(size = 5),
+              axis.text = element_text(size = 7),
+              axis.title = element_text(size = 7),
+              strip.text = element_text(size = 7, hjust = .50))
     }
      
       
@@ -613,31 +626,38 @@ library(grid)
       scale_y_continuous(label = percent) +
       labs(x = NULL, y = NULL) +
       si_style()
-      
+    
     
     viz_growth <- function(ctry_sel){
+      
+      site_cnt<- df_growth_ou %>% 
+        filter(countryname == ctry_sel) %>%
+        pull(is_datim_site) %>% 
+        max()
+        
+        
       df_growth_ou %>% 
         filter(countryname == ctry_sel) %>% 
-        mutate(hfr_pd = str_pad(hfr_pd, 2, pad = "0")) %>% 
-        ggplot(aes(hfr_pd_date_max, delta, group = countryname)) +
-        geom_hline(yintercept = 0) +
-        geom_vline(xintercept = pandemic_date, color = "gray80", size = 2) +
-        geom_vline(xintercept = df_covid_case10 %>% filter(countryname == ctry_sel) %>% pull(), 
-                   color = "gray70", size = 2) +
-        geom_point(size = 4, color = heatmap_pal[10]) +
-        geom_path(size = .9, color = heatmap_pal[10]) +
-        geom_text(aes(x = pandemic_date -1, y = .12 ), 
-                  label = "WHO declared emergency", hjust = 1,
-                  family = "Source Sans Pro Light", size = 3.4, color = "gray80") +
-        geom_text(aes(x = pandemic_date -1, y = .12), 
-                  label = "10th COVID case", hjust = -.5,
-                  family = "Source Sans Pro Light", size = 3.4, color = "gray70") +
-        expand_limits(y = c(-.15, .15)) +
-        scale_y_continuous(label = percent) +
-        labs(x = NULL, y = NULL,
-             title = "GROWTH TRENDS OVER THE LAST THREE PERIODS",
-             subtitle = "interpolated data") +
-        si_style()
+        mutate(hfr_pd = str_pad(hfr_pd, 2, pad = "0"),
+               lab = paste0(format.Date(hfr_pd_date_max, "%b %d"), " (",
+                            str_pad(hfr_pd, 2, pad = "0"), ")", 
+                            ":   ", percent(delta, .1))) %>% 
+        ggplot(aes(1, fct_rev(hfr_pd))) +
+        geom_point(color = NA, na.rm = TRUE) +
+        geom_text(aes(label =lab), size = 4, color = "gray30",
+                  family = "Source Sans Pro") +
+        si_style_nolines() +
+        labs(x = NULL, y = NULL, 
+             title = "Treatment Growth Each Period",
+             subtitle = paste0("only sites reporting in all three periods (",
+                               comma(site_cnt),")"),
+             caption = "interpolated data") +
+        theme(axis.text.y = element_blank(),
+              axis.text.x = element_blank(),
+              plot.title = element_text(size = 11, color = "gray30"),
+              plot.subtitle = element_text(size = 7),
+              plot.caption = element_text(size = 5),
+              strip.text = element_text(size = 7, hjust = .50))
     }
     
     
@@ -729,18 +749,22 @@ library(grid)
       ctry_map %>% 
         ggplot() +
         geom_sf(data = admin1_map, fill = "gray90", color = "white") +
-        geom_sf(fill = NA, size = .9) +
+        geom_sf(fill = NA, size = .5) +
         geom_point(data = df_repgap_ctry,
                    aes(longitude, latitude, fill = position),
                    #size = 2, 
-                   shape = 21, color = "gray60", na.rm = TRUE) +
+                   shape = 21, color = "gray60", 
+                   na.rm = TRUE) +
         scale_fill_manual(values = bivar_map) +
         labs(x = NULL, y = NULL,
-             title = "IDENTIFYING REPORTING GAPS") +
+             title = "Identifying Reporting Gaps",
+             subtitle = "problem areas = dark pink and purple") +
         # theme_void() +
         si_style_nolines() +
         theme(text = element_text(family = "Source Sans Pro"),
               legend.position = "none",
+              plot.title = element_text(size = 11, color = "gray30"),
+              plot.subtitle = element_text(size = 7),
               axis.text.x = element_blank(),
               axis.text.y = element_blank(),
               panel.grid = element_blank())
@@ -753,25 +777,38 @@ library(grid)
 # PLOT GRAPHIC ------------------------------------------------------------
 
     lgnd <- image_read("Images/bivar_legend.png")
+   
+    
     ctry_sel <- "Tanzania"
-    p1 <- viz_trends(ctry_sel)
-    p2 <- viz_rpt_rates(ctry_sel)    
-    p3 <- viz_rpt_map(ctry_sel)
     
-    p3
-    grid.raster(lgnd, x = .15, y = .15, width = .2, height = .2)
+    viz_combo <- function(ctry_sel){
+      
+      p1 <- viz_trends(ctry_sel)
+      p2 <- viz_rpt_rates(ctry_sel)    
+      p3 <- viz_rpt_map(ctry_sel)
+      
+      # p3
+      # grid.raster(lgnd, x = .15, y = .15, width = .2, height = .2)
+      # 
+      p4 <- viz_growth(ctry_sel)
+      
+      # (p1 + p2 & theme(strip.placement = NULL))/ (p3 + p4 + plot_spacer())
+  
+      # p3 + (p1 / (p2  + p4 & theme(strip.placement = NULL))) +
+      combo <- p3 + (p1 / (p2 + p4  & theme(strip.placement = NULL))) +
+        plot_annotation(
+          title = paste(toupper(ctry_sel), "| ASSESSING COVID’S IMPACT THROUGH HFR"),
+          caption = 'HFR DATA | NOT FOR DISTRIBUTION'
+        ) & 
+        theme(text = element_text(family = "Source Sans Pro"),
+              plot.title = element_text(face = "bold"))
+      
+      ggsave("Images/HFR_ReportingTrends.png", height = 5.625, width = 10)
+      
+      return(combo)
+      
     
-    p4 <- viz_growth(ctry_sel)
+    }
     
-    (p1 + p2 & theme(strip.placement = NULL))/ (p3 + p4 + plot_spacer())
-
-    p3 + (p1 / (p2  + p4 & theme(strip.placement = NULL))) +
-      plot_annotation(
-        title = paste(toupper(ctry_sel), "| ASSESSING COVID’S IMPACT THROUGH HFR"),
-        caption = 'HFR DATA | NOT FOR DISTRIBUTION'
-      ) & 
-      theme(text = element_text(family = "Source Sans Pro"),
-            plot.title = element_text(face = "bold"))
-    
-    ggsave("Images/HFR_ReportingTrends.png", height = 5.625, width = 10)
+    viz_combo("Tanzania")
   
