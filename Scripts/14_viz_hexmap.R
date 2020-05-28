@@ -9,30 +9,7 @@ dataout <- "Dataout"
 
 ctry_sel <- "Nigeria"
 
-##df_txcurr carried over from 13_viz_txcurr.R
-# df_repgap <- df_txcurr %>% 
-#   filter(hfr_pd >=4) 
-# 
-# 
-# df_repgap <- df_repgap %>% 
-#   mutate(type = ifelse(hfr_pd >= 7, "post", "pre")) %>% 
-#   group_by(operatingunit, countryname, orgunituid,
-#            mech_code, type) %>% 
-#   summarise(has_hfr_reporting = sum(has_hfr_reporting, na.rm = TRUE),
-#             is_datim_site = sum(is_datim_site, na.rm = TRUE)) %>% 
-#   ungroup()
-# 
-# 
-# df_repgap <- df_repgap %>% 
-#   left_join(iso_map, by = c("countryname" = "operatingunit")) %>% 
-#   select(-regional)
-# 
-# df_repgap <- df_orgheirarchy %>% 
-#   select(orgunituid, latitude, longitude) %>% 
-#   left_join(df_repgap, .)
-# 
-# write_csv(df_repgap, file.path(dataout, "HFR_TXCURR_munged.csv"), na = "")
-
+#import dataset
 df_repgap <- vroom(file.path(dataout, "HFR_TXCURR_munged.zip"))
 
 #country border
