@@ -3,7 +3,7 @@
 ## LICENSE:  MIT
 ## PURPOSE:  align FY20 HFR data
 ## DATE:     2020-05-05
-## UPDATED:  2020-05-20
+## UPDATED:  2020-05-29
 
 
 # DEPENDENCIES ------------------------------------------------------------
@@ -24,35 +24,11 @@ dataout <- "Dataout"
 # IMPORT ------------------------------------------------------------------
 
   #Periods 2020.01-2020.07
-    #https://drive.google.com/open?id=1pumSnpuFfyXf4XEP9BhpHb5K41qZQV1Z
-    path_sql <- here(datain, "HFRDumpForAllOUsTX_MMDTX_CURR05152020.zip")
+    #https://drive.google.com/open?id=1Ykz8nVBwRLRbiAqOoDM57XxSDcT4EFdZ
+    path_sql <- here(datain, "HFR_2020.07_TX_ 20200528.zip")
 
     df_tx <- hfr_read(path_sql)
     
-  #updated 2020.05-2020.07
-    #https://drive.google.com/open?id=1dEp2SVsmyy8Mv7Bdn1gLVSrTBGFZv9qM
-    path_sql_update <- here(datain, "HFR_2020.07_Tableau_20200518.zip")
-    
-    df_sqlview <- hfr_read(path_sql_update)
-    
-
-# MERGE -------------------------------------------------------------------
-
-    #filter sql view update to just TX_CURR and MMD
-      df_sqlview <- df_sqlview %>% 
-        filter(indicator %in% c("TX_CURR", "TX_MMD"))
-    
-    #id periods
-      pds_sqlview <- unique(df_sqlview$hfr_pd)
-    
-    #filter pds covered in update
-      df_tx <- df_tx %>% 
-        filter(!hfr_pd %in% pds_sqlview)
-      
-    #append
-      df_tx <- bind_rows(df_tx, df_sqlview)
-    
-    rm(pds_sqlview, df_sqlview)
 
 # CLEAN -------------------------------------------------------------------
 
