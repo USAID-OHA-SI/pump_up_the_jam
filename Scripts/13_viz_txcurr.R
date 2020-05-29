@@ -752,9 +752,8 @@ library(sf)
         ctry_sel_ne <- unique(df_repgap_ctry$countryname_ne)
       
       #country and admin1 borders
-        ctry_adm0 <- ne_countries(country = ctry_sel_ne, scale = 'medium', returnclass = 'sf')
-        
         ctry_adm1 <- ne_states(country = ctry_sel_ne, returnclass = 'sf') 
+        ctry_adm0 <- summarise(ctry_adm1, placeholder = max(min_zoom))
         
       #deal with SA island
         if(ctry_sel == "South Africa") {
