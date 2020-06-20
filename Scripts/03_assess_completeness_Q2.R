@@ -32,13 +32,10 @@ quarter <- "Q2"
     df_joint <- rename(df_joint, hfr_results = val)
     
 #TODO: @ache - what are doing here for Q2? -> given the ask (and ease), let just make about Q2
-  #convert formats
-    df_joint <- df_joint %>% 
-      mutate(date = as_date(date)) %>% 
-      mutate_at(vars(hfr_results, mer_results, mer_targets), as.double)
-    
+
   #filter dates to keep within bounds of Q2 (full pd indicators use all weeks of pd) 
     df_joint <- df_joint %>% 
+      mutate(date = as_date(date)) %>% 
       filter((!indicator %in% c("TX_CURR", "TX_MMD") &
              between(date, as.Date("2019-12-30"), as.Date("2020-03-23"))) |
              (indicator %in% c("TX_CURR", "TX_MMD") &
