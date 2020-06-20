@@ -183,7 +183,7 @@ quarter <- "Q2"
 
     
   #full quarter
-    df_q1 <- df_joint_lng %>% 
+    df_qtr <- df_joint_lng %>% 
       pd_agg(c("hfr_pd","date")) %>% 
       merge_flags() %>% 
       gen_completeness(out_folder)  
