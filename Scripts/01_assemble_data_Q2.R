@@ -81,17 +81,14 @@ library(here)
   # Load data from most recent to least recent; Filtering as needed
     hfr_pd678 <- vroom(here(datim_folder, "Viewforperiods678_06112020.csv"))
     
-    hfr_pd5 <- vroom(here(datim_folder, "Viewforperiods567_05262020.csv")) %>% 
-      filter(hfr_pd == 5)
-
-    hfr_pd4 <- vroom(here(datim_folder, "Viewforperiods456_05262020.csv")) %>% 
-      filter(hfr_pd == 4)
+    hfr_pd45 <- vroom(here(datim_folder, "Viewforperiods456_05262020.csv")) %>% 
+      filter(hfr_pd %in% c(4, 5))
     
     hfr_pd123 <- vroom(here(datim_folder, "Viewforperiods123_05272020.csv")) 
     
     hfr_list <- ls(pattern = "hfr_pd")
     
-    hfr_all <- bind_rows(hfr_pd678, hfr_pd5, hfr_pd4, hfr_pd123)
+    hfr_all <- bind_rows(hfr_pd678, hfr_pd45, hfr_pd123)
 
     
     # Check the data - check for non-numerical characters
