@@ -3,7 +3,7 @@
 ## LICENSE:  MIT
 ## PURPOSE:  calculate completeness of reporting
 ## DATE:     2020-03-11
-## UPDATED:  2020-03-28
+## UPDATED:  2020-06-20
 
 
 # DEPENDENCIES ------------------------------------------------------------
@@ -31,12 +31,18 @@ quarter <- "Q2"
   #change hfr reporting variable for clarity
     df_joint <- rename(df_joint, hfr_results = val)
     
-#TODO: @ache - what are doing here for Q2?
-#remove data post Q1 for all but TX_CURR
+#TODO: @ache - what are doing here for Q2? -> given the ask (and ease), let just make about Q2
+  #convert formats
     df_joint <- df_joint %>% 
       mutate(date = as_date(date)) %>% 
-      filter(!(indicator != "TX_CURR" & date >= "2019-12-30")) 
+      mutate_at(vars(hfr_results, mer_results, mer_targets), as.double)
     
+  #filter dates to keep within bounds of Q2 (full pd indicators use all weeks of pd) 
+    df_joint <- df_joint %>% 
+      filter((!indicator %in% c("TX_CURR", "TX_MMD") &
+             between(date, as.Date("2019-12-30"), as.Date("2020-03-23"))) |
+             (indicator %in% c("TX_CURR", "TX_MMD") &
+                between(date, as.Date("2019-12-23"), as.Date("2020-04-06")))) 
     #check
       # df_joint %>%
       #   count(date, indicator) %>%
