@@ -48,7 +48,7 @@ library(glamr)
      names()
   
   # Bring together and derive correctness metrics for assessment
-  df_q1_cness <- df_datim_agg %>% 
+  df_qtr_cness <- df_datim_agg %>% 
     group_by_at(grp) %>% 
     mutate(correctness_ratio = ratio_calc(hfr_results, mer_results),
       correctness_distance = mer_results - hfr_results,
@@ -66,7 +66,7 @@ library(glamr)
     ungroup() %>% 
     mutate(ou_annotation = ifelse(mer_results == max_tmp, ou_correctness_ratio, NA_integer_))
   
-  df_q1_cness %>% 
+  df_qtr_cness %>% 
     group_by(operatingunit, indicator, impflag_targets) %>% 
     summarise(mean = mean(ou_correctness_ratio)) %>% 
     spread(impflag_targets, mean) %>% 
@@ -80,6 +80,6 @@ library(glamr)
     filename_correctness <- paste0("HFR_Correctness_", quarter, "_",  format(Sys.Date(), "%Y%m%d"), ".csv")
   
   #save
-    write_csv(df_q1_cness, file.path(out_folder, filename_correctness), na = "")
+    write_csv(df_qtr_cness, file.path(out_folder, filename_correctness), na = "")
 
   
