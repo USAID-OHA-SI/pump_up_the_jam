@@ -21,7 +21,6 @@ library(here)
   start_date <- "2019-09-30"
   weeks <- 32
   datim_folder <- "Data"
-  data <- "Data"
   out_folder <- "Dataout"
   quarter <- "Q2"
 
