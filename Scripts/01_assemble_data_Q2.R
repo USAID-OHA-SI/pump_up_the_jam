@@ -37,7 +37,11 @@ library(here)
     
   #import and bind together
     df_datim <- map_dfr(.x = files,
-                        .f = ~readr::read_csv(.x))
+                        .f = ~read_csv(.x, col_types = c(.default = "c",
+                                                         fy = "i",
+                                                         mer_results = "d",
+                                                         mer_targets = "d"
+                        )))
     
   #fix TX_MMD "targets" --> set to Q1 results
     df_datim_mmd <- df_datim %>% 
