@@ -33,10 +33,13 @@ library(glamr)
   color_hv_sites <- pal[1]
   color_ref <- "#C8C8C8"
   color_all_sites <- "gray30" #"#D3D3D3"
-
-# LOAD AND COMPLETENESS CALCULATIONS --------------------------------------
+  quarter <- "Q2"
   
-  df_datim_agg <- list.files(out_folder, "HFR_DATIM_FY20Q2_Agg_[[:digit:]]+\\.csv", full.names = TRUE) %>% 
+# LOAD AND COMPLETENESS CALCULATIONS --------------------------------------
+  #import
+  file_name <- paste0("HFR_DATIM_FY20", quarter, "_Agg_[[:digit:]]+\\.csv") 
+  
+  df_datim_agg <- list.files(out_folder, file_name, full.names = TRUE) %>% 
     vroom()  
 
   # Collapse HFR down to the quarter level, aggregating hfr entries by mech + site

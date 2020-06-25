@@ -14,6 +14,7 @@ library(vroom)
 library(scales)
 library(extrafont)
 library(ggtext)
+library(extrafont)
 
 
 # GLOBAL VARIABLES --------------------------------------------------------
@@ -27,14 +28,15 @@ pal <- viridis_pal()(6) #%>% show_col()
 color_hv_sites <- pal[1]
 color_ref <- "gray30" #"#C8C8C8"
 color_all_sites <- "#D3D3D3"
+period <- "Q2"
 
 # IMPORT ------------------------------------------------------------------
 
   #import
-    df_completeness_viz <- list.files(out_folder, "HFR_Completeness_[[:digit:]]+\\.csv", full.names = TRUE) %>% 
+    df_completeness_viz <- list.files(out_folder, "HFR_Completeness_Q2__[[:digit:]]+\\.csv", full.names = TRUE) %>% 
       vroom()
   
-    df_completeness_pds_viz <- list.files(out_folder, "HFR_Completeness_Pds_[[:digit:]]+\\.csv", full.names = TRUE) %>% 
+    df_completeness_pds_viz <- list.files(out_folder, "HFR_Completeness_Q2_Pds_[[:digit:]]+\\.csv", full.names = TRUE) %>% 
       vroom()
     
 
@@ -76,7 +78,7 @@ color_all_sites <- "#D3D3D3"
                                        operatingunit == "Western Hemisphere Region" ~ "WH Region",
                                        TRUE ~ operatingunit))
     
-    
+  
   # Run lowess regression on each indicator + site type with time as the xvar.
   # Saving results so we can make an arrow at the end of the fitted line with geom_segement
   # NOTE: Didn't work out as expect, simply adding a circle at the end of fitted line

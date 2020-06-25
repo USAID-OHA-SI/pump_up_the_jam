@@ -14,6 +14,7 @@ library(tidytext)
 library(scales)
 library(extrafont)
 library(ggrepel)
+library(vir)
 
 
 # GLOBALS -----------------------------------------------------------------
@@ -26,12 +27,14 @@ library(ggrepel)
   color_hv_sites <- pal[1]
   color_ref <- "#C8C8C8"
   color_all_sites <- "gray30" #"#D3D3D3"
+  quarter <- "Q2"
 
 
 # IMPORT ------------------------------------------------------------------
 
   #import
-    df_completeness_viz <- list.files(out_folder, "HFR_Correctness_[[:digit:]]+\\.csv", full.names = TRUE) %>% 
+  file_name <- paste0("HFR_Correctness_", quarter, "_[[:digit:]]+\\.csv")
+    df_completeness_viz <- list.files(out_folder, file_name, full.names = TRUE) %>% 
       vroom()
 
 
@@ -83,19 +86,19 @@ library(ggrepel)
 
 
   #plot and save for HTS_TST, TX_NEW, TX_CURR
-    plot_cness(df_q1_cness, "HTS_TST", top_ous) +
+    plot_cness(df_completeness_viz, "HTS_TST", top_ous) +
       labs(title = "BETTER CORRECTNESS IN HIGH VOLUME SITES")
     
       ggsave(file.path(viz_folder,"HFR_Correctness_HTS_TST.png"), dpi = 300, 
              width = 10, height = 5.625, scale = 1.25)
       
-    plot_cness(df_q1_cness, "TX_NEW", top_ous) +
+    plot_cness(df_completeness_viz, "TX_NEW", top_ous) +
       labs(title = "MOSTLY BETTER CORRECTNESS IN HIGH VOLUME SITES")
     
       ggsave(file.path(viz_folder,"HFR_Correctness_TX_NEW.png"), dpi = 300, 
              width = 10, height = 5.625, scale = 1.25)
     
-    plot_cness(df_q1_cness, "TX_CURR", top_ous) +
+    plot_cness(df_completeness_viz, "TX_CURR", top_ous) +
       labs(title = "SIMILAR TRENDS IN CORRECTNESS ACROSS SITE TYPES")
     
       ggsave(file.path(viz_folder,"HFR_Correctness_TX_CURR.png"), dpi = 300, 

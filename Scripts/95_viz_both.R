@@ -15,6 +15,7 @@
   library(extrafont)
   library(ggtext)
   library(tidytext)
+  library(extrafont)
 
 
 # GLOBAL VARIABLES --------------------------------------------------------
@@ -30,19 +31,21 @@
   color_all_sites <- "#D3D3D3"
 
   cc_thresh = 0.80
+  quarter <- "Q2"
 
 
 # IMPORT ------------------------------------------------------------------
 
   #import
-    df_q1 <- list.files(out_folder, "HFR_DATIM_FY20Q1_Agg_[[:digit:]]+\\.csv", full.names = TRUE) %>% 
+  file_name <- paste0("HFR_DATIM_FY20", quarter, "_Agg_[[:digit:]]+\\.csv") 
+    df_qtr <- list.files(out_folder, file_name, full.names = TRUE) %>% 
       vroom()
 
 
 # MUNGE -------------------------------------------------------------------
 
   #calc OU level completeness and correctnessess (and their distance from 100% for color) 
-    df_cc <- df_q1 %>%
+    df_cc <- df_qtr %>%
       filter(indicator %in% ind_sel,
              !(has_hfr_reporting == TRUE & is_datim_site == FALSE)) %>% 
       filter_at(vars(hfr_results, mer_results, mer_targets), any_vars(.!=0)) %>% 
@@ -94,7 +97,7 @@
 
     #Global data frame w/ correct aggregates  
     
-    df_cc_glob <- df_q1 %>%
+    df_cc_glob <- df_qtr %>%
       filter(indicator %in% ind_sel,
              !(has_hfr_reporting == TRUE & is_datim_site == FALSE)) %>% 
       filter_at(vars(hfr_results, mer_results, mer_targets), any_vars(.!=0)) %>% 
@@ -135,8 +138,8 @@
            #color = "Reporting completeness/correctness distance from 100% complete/correct",
            size = "number of sites",
            title = "COMPLETENESS/CORRECTNESS ACROSS ALL SITES",
-           subtitle = "FY20Q1 Site x Mechanism HFR Reporting Completeness and Correctness",
-           caption = "Source: FY20Q1 MER + HFR") +
+           subtitle = paste0("FY20", quarter, " Site x Mechanism HFR Reporting Completeness and Correctness"),
+           caption = paste0("Source: FY20", quarter, "MER + HFR")) +
       theme_minimal() +
       guides(size = guide_legend(reverse=T))+
       theme(panel.grid = element_blank(),
@@ -163,8 +166,8 @@
         #color = "Reporting completeness/correctness distance from 100% complete/correct",
         size = "number of sites",
         title = "FEW SITES REPORT HIGH LEVELS (>80%) OF BOTH COMPLETENESS/CORRECTNESS",
-        subtitle = "FY20Q1 Site x Mechanism HFR Reporting Completeness and Correctness",
-        caption = "Source: FY20Q1 MER + HFR") +
+        subtitle = paste0("FY20", quarter, " Site x Mechanism HFR Reporting Completeness and Correctness"),
+        caption = paste0("Source: FY20", quarter, "MER + HFR")) +
       theme_minimal() +
       guides(size = guide_legend(reverse=T))+
       theme(panel.grid = element_blank(),
@@ -196,9 +199,9 @@
       geom_abline(intercept = 0, slope = 1, color = "#909090") +
       expand_limits(x = 1.7, y = 1.7) +
       labs(title = "COMPLETENESS v CORRECTNESS",
-           subtitle = "FY20Q1 Site x Mechanism HFR Reporting Correctness/Completeness",
+           subtitle = paste0("FY20", quarter, " Site x Mechanism HFR Reporting Correctness/Completeness"),
            color = NULL,
-           caption = "Source: FY20Q1 MER + HFR") +
+           caption = paste0("Source: FY20", quarter, "MER + HFR")) +
       scale_color_viridis_d() +
       scale_y_continuous(label = percent) +
       scale_x_continuous(label = percent) +
@@ -269,7 +272,7 @@
     ou_list <- df_cc %>% distinct(ou_id) %>% pull()
     
     plots <- map(.x = ou_list, .f = ~ hfr_cc_scplot(df_cc, ou_code = .x))
-    plots[19][[1]]
+    plots[7][[1]]
     
     #TODO: CREATE GLOBAL GRAPHIC WITH RESULTS AGGREGATED TO THE APPROPRIATE LEVEL
     
@@ -311,8 +314,8 @@
         facet_wrap(~indicator) +
         labs(
           title = str_c(stringr::str_to_upper(ou_name)),
-          subtitle = "FY20Q1 Site x Mechanism HFR Reporting Correctness/Completeness",
-          caption = "Source: FY20Q1 MER + HFR"
+          subtitle = paste0("FY20", quarter, " Site x Mechanism HFR Reporting Correctness/Completeness"),
+          caption = paste0("Source: FY20", quarter, "MER + HFR")
         ) +
         scale_y_continuous(label = percent, limits = c(0, 1.5)) +
         scale_x_continuous(label = percent, limits =c(0, 1.5)) +
@@ -324,7 +327,7 @@
     
     hfr_cc_scatter(df_cc, ou_code = 10)
     hfr_scatter_plots <- map(.x = ou_list, .f = ~ hfr_cc_scatter(df_cc, ou_code = .x))
-    hfr_scatter_plots[25][[1]]
+    hfr_scatter_plots[20][[1]]
     
     
     #TODO: DETERMINE BEST LAYOUT FOR THESE. MIGRATE DATA FRAMES OVER TO TABLEAU FOR TEMPLATING.
@@ -332,31 +335,36 @@
   
 
 # INTRO SLIDE PLOT --------------------------------------------------------
-
-    
+  df_cc_glob_flt <-  df_cc_glob %>% filter(measure == "completeness")
+     
     df_cc %>% 
-      ggplot(aes(value, fct_rev(measure)), color = "#595959") + 
+      filter(measure == "completeness") %>% 
+      ggplot(aes(value, fct_rev(measure))) + 
       geom_vline(aes(xintercept = 1), color = "gray60", linetype = "dashed") +
-      geom_jitter(alpha = .4, height = .1, size = 3, na.rm = TRUE) +
-      geom_point(data = df_cc_glob, aes(value, fct_rev(measure)), size = 7, color = "#0067b9ff") +
-      geom_text(data = df_cc_glob, aes(label = percent(value, 1)),
+      geom_jitter(shape = 21, alpha = .5, height = .1, size = 3,
+                  color = "white", fill = "#595959", na.rm = TRUE) +
+      geom_point(data = df_cc_glob_flt, aes(value, fct_rev(measure)), size = 7, color = "#0067b9") +
+      geom_text(data = df_cc_glob_flt, aes(label = percent(value, 1)),
                 size = 2.6, color = "white",
                 family = "Source Sans Pro") +
       facet_grid(indicator ~ ., switch = "y") +
       scale_x_continuous(labels = percent) +
       scale_color_manual(values = c("#8C88BF", "#730E75"), guide = FALSE) +
       labs(x = NULL, y = NULL,
-           title = "BETTER TREATMENT REPORTING \nTHAN TESTING IN FY20Q1",
-           caption = "Source: FY20Q1 MER + HFR") +
+           title = "HFR COMPLETENESS BETTER TREATMENT REPORTING \nTHAN TESTING IN FY20Q2",
+           caption = "Source: FY20Q2 MER + HFR") +
       theme(strip.placement = "outside",
             strip.text = element_text(face = "bold"),
             panel.border = element_rect(color = "gray60", fill = NA),
             panel.grid.major.y = element_blank(),
             plot.title = element_text(face = "bold"),
-            plot.caption = element_text(color = "gray30", face = "plain"))
+            plot.caption = element_text(color = "gray30", face = "plain"),
+            strip.text.y.left = element_text(angle = 0), 
+            axis.text.y = element_blank())
     
     ggsave(file.path(viz_folder,"HFR_CC_Intro.png"), dpi = 300, 
-           width = 4.8, height = 5.4)  
+           width = 7.24, height = 4.23)  
     
-    
+
+  
     
