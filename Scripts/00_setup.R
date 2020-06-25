@@ -1,25 +1,34 @@
 ## PROJECT:  Pump up the jam
 ## AUTHOR:   T.Essam | USAID
 ## LICENSE:  MIT
-## PURPOSE:  structure project folders
+## PURPOSE:  structure project folders & download data
 ## DATE:     2020-03-09
-## UPDATED:  
+## UPDATED:  2020-6-25
 
 
+# DEPENDENCIES ------------------------------------------------------------
 
-# FUNCTION ----------------------------------------------------------------
-
-
-  folder_setup <- function(folder_list = list("Data", "Images", "Scripts", 
-                                              "Dataout", "GIS", "Documents", "Graphics", "markdown")) {
-    if(!is.list(folder_list))
-      stop("Please provide a list of directories to create for the project.")
-    print("The following directories will be created:")
-    print(glue::glue(crayon::green('{folder_list}')))
-    purrr::map(folder_list, ~dir.create(.))
-
-  }
+library(tidyverse)
+library(glamr)
+library(googledrive)
 
 # Set global shortucts ----------------------------------------------------
 
   folder_setup()
+  
+
+# DOWNLOAD DATA -----------------------------------------------------------
+
+  #OAuth
+    drive_auth()
+  
+  #drive location
+    fldr_id <- "18HBUdKSSk09oChhQanCOIbHK5IW8NE_K"
+
+  #files
+    files <- drive_ls(as_id(fldr_id), pattern = "View") %>% pull(name)
+
+  #download
+    walk(files, ~ import_drivefile(fldr_id, .x))
+
+
