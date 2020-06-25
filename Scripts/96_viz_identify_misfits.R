@@ -3,6 +3,7 @@
 ## LICENSE:  MIT
 ## PURPOSE:  audit plots to identify mechs w/ improper HFR submissions
 ## DATE:     2020-03-23
+## UPDATED:  2020-06-23
 
 # DEPENDENCIES ------------------------------------------------------------
 
@@ -12,6 +13,7 @@
   library(scales)
   library(extrafont)
   library(ggtext)
+  library(extrafont)
 
 
 # GLOBAL VARIABLES --------------------------------------------------------
@@ -34,14 +36,18 @@
     prinf <- function(df) {
       print(df, n = Inf)
     }
+    
+  quarter <- "Q2"
 
 
 # IMPORT ------------------------------------------------------------------
 
   #import
-  df_q1 <- list.files(out_folder, "HFR_DATIM_FY20Q1_Agg_[[:digit:]]+\\.csv", full.names = TRUE) %>% 
-    vroom()
-
+  file_name <- paste0("HFR_DATIM_FY20", quarter, "_Agg_[[:digit:]]+\\.csv")  
+  #df_q1 <- list.files(out_folder, "HFR_DATIM_FY20Q2_Agg_[[:digit:]]+\\.csv", full.names = TRUE) %>% 
+  #vroom()
+  df_qtr <- list.files(out_folder, file_name, full.names = TRUE) %>% vroom()
+  
 
 # GGPLOTS -----------------------------------------------------------------
 
@@ -78,7 +84,7 @@
           }
       }
         
-    ou_auditplot(df_q1)
+    ou_auditplot(df_qtr)
     
     ind_sel  <- c("HTS_TST", "TX_NEW", "TX_CURR")
     plots_audit <- map(ind_sel, ~ou_auditplot(df_q1, indicator = .x))
@@ -89,7 +95,7 @@
 
     
   # Listing out each OU to show how misfits there are in each OU by indicator    
-    df_audit <- df_q1 %>% 
+    df_audit <- df_qtr %>% 
       mutate(
         hfr_ratio = ratio_calc(hfr_results, mer_results),
         hfr_flag = if_else(hfr_ratio <= 0.90 | hfr_ratio >= 1.1, 1, 0),
