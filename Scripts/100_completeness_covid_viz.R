@@ -15,163 +15,167 @@ library(scales)
 library(extrafont)
 library(ggtext)
 library(extrafont)
+library(glamr)
+library(COVIDutilities)
+library(ISOcodes)
 
 
 # GLOBAL VARIABLES --------------------------------------------------------
 
-out_folder <- "Dataout"
-viz_folder <- "Images"
-
-ind_sel  <- c("HTS_TST", "TX_NEW", "TX_CURR")
-
-pal <- viridis_pal()(6) #%>% show_col()
-color_hv_sites <- pal[1]
-color_ref <- "gray30" #"#C8C8C8"
-color_all_sites <- "#D3D3D3"
-period <- "Q2"
+  out_folder <- "Dataout"
+  viz_folder <- "Images"
+  
+  ind_sel  <- c("HTS_TST", "TX_NEW", "TX_CURR")
+  
+  pal <- viridis_pal()(6) #%>% show_col()
+  color_hv_sites <- pal[1]
+  color_ref <- "gray30" #"#C8C8C8"
+  color_all_sites <- "#D3D3D3"
+  period <- "Q2"
 
 
 #Stringency Index API url - start/end date 
-ox_start <- "2020-01-01"
-ox_end <- today()
-url_ox <- paste("https://covidtrackerapi.bsg.ox.ac.uk/api/v2/stringency/date-range",
-                ox_start, ox_end, sep = "/")
-rm(ox_end, ox_start)
-
-start_date <- "2019-12-30"
-weeks <- 26
+  ox_start <- "2020-01-01"
+  ox_end <- today()
+  url_ox <- paste("https://covidtrackerapi.bsg.ox.ac.uk/api/v2/stringency/date-range",
+                  ox_start, ox_end, sep = "/")
+  rm(ox_end, ox_start)
+  
+  start_date <- "2019-12-30"
+  weeks <- 26
 
 # IMPORT ------------------------------------------------------------------
 
-df_comp_pds_viz <- list.files(out_folder, "HFR_Completeness_Q2_Pds_[[:digit:]]+\\.csv", full.names = TRUE) %>% 
+df_comp_pds_viz <- 
+  list.files(out_folder, "HFR_Completeness_Q2_Pds_[[:digit:]]+\\.csv", full.names = TRUE) %>% 
   vroom()
 
-df_comp_wks_viz <- list.files(out_folder, "HFR_Completeness_Q2_Wks_[[:digit:]]+\\.csv", full.names = TRUE) %>% 
+df_comp_wks_viz <- 
+  list.files(out_folder, "HFR_Completeness_Q2_Wks_[[:digit:]]+\\.csv", full.names = TRUE) %>% 
   vroom()
 
 # COVID DATA PULLS --------------------------------------------------------
 
-#COVID Restrictions (HDX)
-df_gov_measures <- extract_excel_data(hdx_govmes_url, 
-                                      hdx_govmes_linkid, 
-                                      "Database", 'xlsx')
-#Government Response (Oxford - https://covidtracker.bsg.ox.ac.uk/about-api)
-
-json <- url_ox %>%
-  jsonlite::fromJSON(flatten = TRUE)
+  #COVID Restrictions (HDX)
+    df_gov_measures <- extract_excel_data(hdx_govmes_url, 
+                                        hdx_govmes_linkid, 
+                                        "Database", 'xlsx')
+  #Government Response (Oxford - https://covidtracker.bsg.ox.ac.uk/about-api)
+    json <- url_ox %>%
+    jsonlite::fromJSON(flatten = TRUE)
   
   #COVID cases (JHU)
-  df_covid <- pull_jhu_covid()
+    df_covid <- pull_jhu_covid()
   
 # MUNGE OXFORD DATA -------------------------------------------------------
   
   #covert from json to dataframe
-  df_stringency <- json %>%
-    unlist() %>%
-    enframe()
+    df_stringency <- json %>%
+      unlist() %>%
+      enframe()
   
   #clean up table
-  df_stringency <- df_stringency %>% 
-    rowwise() %>%
-    mutate(
-      parts = length(unlist(str_split(name, "[.]"))),
-      tbl = first(unlist(str_split(name, "[.]"))),
-      tbl = gsub("\\d", "", tbl)
-    ) %>%
-    filter(parts == 4) %>%    # Keep the data, section with the longest parts
-    separate(name,
-             into = c("name", "date", "iso", "variable"),
-             sep = "[.]") %>%                   # Separate column into multiple parts
-    select(date:value) %>%               # Get rid of extra columns
-    filter(date != value, iso != value) %>%     # Exclude repetition
-    mutate(date = ymd(date), value = as.numeric(value)) %>% 
-    spread(variable, value) %>% 
-    select(-contains("legacy"))
-  
-  #filter to PEPFAR countries
-  df_stringency <- df_stringency %>% 
-    filter(iso %in% iso_map$iso)
-  
-  rm(json)
+    df_stringency <- df_stringency %>% 
+      rowwise() %>%
+      mutate(
+        parts = length(unlist(str_split(name, "[.]"))),
+        tbl = first(unlist(str_split(name, "[.]"))),
+        tbl = gsub("\\d", "", tbl)
+      ) %>%
+      filter(parts == 4) %>%    # Keep the data, section with the longest parts
+      separate(name,
+               into = c("name", "date", "iso", "variable"),
+               sep = "[.]") %>%                   # Separate column into multiple parts
+      select(date:value) %>%               # Get rid of extra columns
+      filter(date != value, iso != value) %>%     # Exclude repetition
+      mutate(date = ymd(date), value = as.numeric(value)) %>% 
+      spread(variable, value) %>% 
+      select(-contains("legacy"))
+    
+    #filter to PEPFAR countries
+    df_stringency <- df_stringency %>% 
+      filter(iso %in% iso_map$iso)
+    
+    rm(json)
   
 # COVID CALENDAR ----------------------------------------------------------
   
   covid <- who_pandemic() %>% pull(date)
   
   # Aling HFR to COVID stingency so we can merge by date and OU
-  
-  df_stringency_date <- 
-    ISO_3166_1 %>% 
-    select(Name, iso = Alpha_3) %>%
-    mutate(Name = recode(Name, 
-                         "Congo, The Democratic Republic of the" = "Congo (Kinshasa)",
-                         "Myanmar" = "Burma",
-                         "C?te d'Ivoire" = "Cote d'Ivoire",
-                         "Lao People's Democratic Republic" = "Laos",
-                         "Tanzania, United Republic of" = "Tanzania",
-                         "Viet Nam" = "Vietnam")) %>% 
-    left_join(df_stringency) %>% 
-    rename(operatingunit = Name) %>% 
-    mutate(operatingunit = recode(operatingunit, 
-                                "Congo (Kinshasa)" = "Democratic Republic of the Congo")) %>% 
-    filter(iso %in% iso_map$iso) %>% 
-    mutate(covid_val = -0.15)
+    df_stringency_date <- 
+      ISO_3166_1 %>% 
+      select(Name, iso = Alpha_3) %>%
+      mutate(Name = recode(Name, 
+                           "Congo, The Democratic Republic of the" = "Congo (Kinshasa)",
+                           "Myanmar" = "Burma",
+                           "C?te d'Ivoire" = "Cote d'Ivoire",
+                           "Lao People's Democratic Republic" = "Laos",
+                           "Tanzania, United Republic of" = "Tanzania",
+                           "Viet Nam" = "Vietnam")) %>% 
+      left_join(df_stringency) %>% 
+      rename(operatingunit = Name) %>% 
+      mutate(operatingunit = recode(operatingunit, 
+                                  "Congo (Kinshasa)" = "Democratic Republic of the Congo")) %>% 
+      filter(iso %in% iso_map$iso) %>% 
+      mutate(covid_val = -0.15)
 
-# Adding custom colors to stringency index for plotting. Collapsing down to week to aling with HFR
-# so plots line up.
-  df_stringency_wkly <- 
-    df_stringency_date %>% 
-    group_by(date = floor_date(date, "week", week_start = getOption("lubridate.week.start", 1)),
-             iso, operatingunit, covid_val) %>%
-    summarise(stringency = mean(stringency_actual, na.rm = TRUE)) %>% 
-    ungroup() %>% 
-    filter(!is.na(date)) %>% 
-    mutate(bins = case_when(is.na(stringency)  ~ "NA",
-                            stringency < 1     ~ "<1",
-                            stringency < 25    ~ "1-24",
-                            stringency < 50    ~ "25-49",
-                            stringency < 75    ~ "50-74",
-                            stringency < 85    ~ "75-84",
-                            TRUE               ~ "85-100"),
-           color = case_when(is.na(stringency) ~ "#D9CDC3",
-                             stringency < 1    ~ "#D3E8F0",
-                             stringency < 25   ~ "#FAE1AF",
-                             stringency < 50   ~ "#FDAC7A",
-                             stringency < 75   ~ "#F6736B",
-                             stringency < 85   ~ "#DA3C6A",
-                             TRUE              ~ "#A90773"
-           )) %>% 
-    mutate(bins = factor(bins, c("NA","<1", "1-24", "25-49", "50-74", "75-84", "85-100")),
-           color = factor(color, c("#D9CDC3", "#D3E8F0","#FAE1AF", "#FDAC7A", "#F6736B", "#DA3C6A", "#A90773")))
-  
+  # Adding custom colors to stringency index for plotting. Collapsing down to week to aling with HFR
+  # so plots line up.
+    df_stringency_wkly <- 
+      df_stringency_date %>% 
+      group_by(date = floor_date(date, "week", week_start = getOption("lubridate.week.start", 1)),
+               iso, operatingunit, covid_val) %>%
+      summarise(stringency = mean(stringency_actual, na.rm = TRUE)) %>% 
+      ungroup() %>% 
+      filter(!is.na(date)) %>% 
+      mutate(bins = case_when(is.na(stringency)  ~ "NA",
+                              stringency < 1     ~ "<1",
+                              stringency < 25    ~ "1-24",
+                              stringency < 50    ~ "25-49",
+                              stringency < 75    ~ "50-74",
+                              stringency < 85    ~ "75-84",
+                              TRUE               ~ "85-100"),
+             color = case_when(is.na(stringency) ~ "#D9CDC3",
+                               stringency < 1    ~ "#D3E8F0",
+                               stringency < 25   ~ "#FAE1AF",
+                               stringency < 50   ~ "#FDAC7A",
+                               stringency < 75   ~ "#F6736B",
+                               stringency < 85   ~ "#DA3C6A",
+                               TRUE              ~ "#A90773"
+             )) %>% 
+      mutate(bins = factor(bins, c("NA","<1", "1-24", "25-49", "50-74", "75-84", "85-100")),
+             color = factor(color, c("#D9CDC3", "#D3E8F0","#FAE1AF", "#FDAC7A", "#F6736B", "#DA3C6A", "#A90773")))
+    
   
   # Need to expand the completeness data to extend through the max of the covid data
-  max_date_covid <- df_stringency_wkly$date %>% max()
-  max_date_hfr <- df_comp_wks_viz$date %>% max()
-  min_date_hfr <- df_comp_wks_viz$date %>% min() # Min date distored by TX_CURR and TX_MMD
-  expand_dates <- as_tibble(seq.Date(as.Date("2019-12-30"), by = "week", length.out = 26)) %>% rename(date = value)
+    max_date_covid <- df_stringency_wkly$date %>% max()
+    max_date_hfr <- df_comp_wks_viz$date %>% max()
+    min_date_hfr <- df_comp_wks_viz$date %>% min() # Min date distored by TX_CURR and TX_MMD
+    expand_dates <- as_tibble(seq.Date(as.Date("2019-12-30"), by = "week", length.out = 26)) %>% 
+      rename(date = value)
     
   # Lengthen HFR so we can join to stringency index and have plots that run past end of HFR weeks
-  df_comp_wks_full <- 
-    df_comp_wks_viz %>% 
-    full_join(., expand_dates) %>% 
-    complete(date, nesting(operatingunit, site_type, indicator)) %>% 
-    arrange(operatingunit, site_type, indicator, date) 
-    
+    df_comp_wks_full <- 
+      df_comp_wks_viz %>% 
+      full_join(., expand_dates) %>% 
+      complete(date, nesting(operatingunit, site_type, indicator)) %>% 
+      arrange(operatingunit, site_type, indicator, date) 
+      
   
   # Merge with completeness data
-  df_comp_covid <- df_stringency_wkly %>% 
-    left_join(., df_comp_wks_full) %>% 
-    arrange(operatingunit, site_type, indicator, date) %>% 
-    mutate(operatingunit = if_else(operatingunit == "Democratic Republic of the Congo", "DRC", operatingunit))
+    df_comp_covid <- df_stringency_wkly %>% 
+      left_join(., df_comp_wks_full) %>% 
+      arrange(operatingunit, site_type, indicator, date) %>% 
+      mutate(operatingunit = if_else(operatingunit == "Democratic Republic of the Congo", "DRC", operatingunit))
     
   # Because we need a prinf() call -- checking that rename of countries is right
-df_comp_covid %>% count(operatingunit) %>% prinf()  
+    df_comp_covid %>% count(operatingunit) %>% prinf()  
 
 
-top_ous <- c("South Africa", "Nigeria", "Mozambique", "Tanzania", "Zimbabwe", 
-             "Uganda", "Nigeria", "Kenya", "Malawi", "Zambia", "DRC",
-             "Eswatini", "Lesotho")
+    top_ous <- c("South Africa", "Nigeria", "Mozambique", "Tanzania", "Zimbabwe", 
+                 "Uganda", "Nigeria", "Kenya", "Malawi", "Zambia", "DRC",
+                 "Eswatini", "Lesotho")
 
 # COMPLETENESS GRAPHS WITH STRINGENCY RUG ---------------------------------
 

@@ -23,6 +23,7 @@ library(here)
   datim_folder <- "Data"
   out_folder <- "Dataout"
   quarter <- "Q2"
+  data_in <- "Data"
 
   #establish OAuth
   #drive_auth()
@@ -70,28 +71,34 @@ library(here)
     #unlink(files)
     list.files(datim_folder, "3.1 DATIM", full.names = T) %>% unlink(., recursive = TRUE)
 
-    
   #remove extra objects
     rm(df_datim, dates, files)
     
 
 # IMPORT + AGGREGATE HFR --------------------------------------------------
-# USING TABLEAU DATA + SERVER EXTRACTS
+  
+  # USING TABLEAU DATA + SERVER EXTRACTS -- pulled in the 00_setup.R file
     
   # Load data from most recent to least recent; Filtering as needed
-    hfr_pd678 <- vroom(here(datim_folder, "Viewforperiods678_06112020.csv"))
+    hfr_pattern = "06242020.zip"
+    hfr_views <- list.files(path = here(data_in), pattern = hfr_pattern, full.names = TRUE)
     
-    hfr_pd45 <- vroom(here(datim_folder, "Viewforperiods456_05262020.csv")) %>% 
-      filter(hfr_pd %in% c(4, 5))
+    map(hfr_views, ~unzip(., exdir = data_in))
+ 
+  # Load periods incrementally b/c some have to be filtered.     
+    hfr_pd123 <- vroom(here(data_in, "Viewforperiods123_06242020.csv")) 
     
-    hfr_pd123 <- vroom(here(datim_folder, "Viewforperiods123_05272020.csv")) 
+    hfr_pd45 <- vroom(here(datim_folder, "Viewforperiods456_06242020.csv")) %>% 
+      filter(hfr_pd %in% c(4, 5))  
     
+    hfr_pd678 <- vroom(here(datim_folder, "Viewforperiods678_06242020.csv"))
+      
     hfr_list <- ls(pattern = "hfr_pd")
-    
+      
     hfr_all <- bind_rows(hfr_pd678, hfr_pd45, hfr_pd123)
 
     
-    # Check the data - check for non-numerical characters
+  # Check the data - check for non-numerical characters
     hfr_all %>% filter(!grepl('^[0-9]', val)) %>% count(val, hfr_pd) %>% arrange(hfr_pd)
     
     # Filtering these NA values out
@@ -122,7 +129,7 @@ library(here)
       mutate_all(as.character)
     
   remove(list = ls(pattern = "hfr_p|hfr_all"))  
-    
+  
 # MERGE HFR + DATIM -------------------------------------------------------
 
   # Check compatibility of variable types
