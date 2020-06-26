@@ -37,9 +37,9 @@ quarter <- "Q2"
     df_joint <- df_joint %>% 
       mutate(date = as_date(date)) %>% 
       filter((!indicator %in% c("TX_CURR", "TX_MMD") &
-             between(date, as.Date("2019-12-30"), as.Date("2020-03-23"))) |
+             between(date, as.Date("2019-12-30"), as.Date("2020-05-04"))) |
              (indicator %in% c("TX_CURR", "TX_MMD") &
-                between(date, as.Date("2019-12-23"), as.Date("2020-04-06")))) 
+                between(date, as.Date("2019-12-23"), as.Date("2020-05-04")))) 
     #check
       # df_joint %>%
       #   count(date, indicator) %>%
