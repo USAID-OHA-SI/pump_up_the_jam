@@ -199,7 +199,7 @@ df_comp_covid %>%
     facet_wrap(~ou_order) +
     scale_y_continuous(labels = percent, limits = c(-.15, 1)) +
     scale_x_date(date_labels = "%b", date_breaks = "1 months")+
-    scale_fill_identity()+
+    scale_fill_identity() +
     #scale_fill_gradientn(colours = RColorBrewer::brewer.pal(7, 'OrRd'), na.value = "white") +
     si_style_ygrid() +
     labs(x = NULL, y = NULL, title = "WEEKLY TX_NEW COMPLETENESS RATES SORTED BY LARGEST OUS\n",
@@ -207,5 +207,5 @@ df_comp_covid %>%
     theme(legend.position = "none")
     
  ggsave("hfr_tx_new_completeness_summary.png", path = "Images", dpi = 330,
-        width = 7.24, height = 4.23, scale = 1.25)
+        width = 7.24, height = 4.23, scale = 1.45)
     
