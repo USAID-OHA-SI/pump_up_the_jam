@@ -28,15 +28,15 @@ pal <- viridis_pal()(6) #%>% show_col()
 color_hv_sites <- pal[1]
 color_ref <- "gray30" #"#C8C8C8"
 color_all_sites <- "#D3D3D3"
-period <- "Q2"
+period <- "Q3"
 
 # IMPORT ------------------------------------------------------------------
 
   #import
-    df_completeness_viz <- list.files(out_folder, "HFR_Completeness_Q2__[[:digit:]]+\\.csv", full.names = TRUE) %>% 
+    df_completeness_viz <- list.files(out_folder, paste0("HFR_Completeness_", quarter, "__[[:digit:]]+\\.csv"), full.names = TRUE) %>% 
       vroom()
   
-    df_completeness_pds_viz <- list.files(out_folder, "HFR_Completeness_Q2_Pds_[[:digit:]]+\\.csv", full.names = TRUE) %>% 
+    df_completeness_pds_viz <- list.files(out_folder, paste0("HFR_Completeness_", quarter, "_Pds_[[:digit:]]+\\.csv"), full.names = TRUE) %>% 
       vroom()
     
 
@@ -164,10 +164,10 @@ period <- "Q2"
     df_heatmap_all <- heatmap_prep(df_completeness_pds_viz, c("HTS_TST", "HTS_TST_POS", "TX_NEW", "VMMC_CIRC", "PrEP_NEW", "TX_CURR", "TX_MMD"))
     
     df_results_nonzero_sparkline <- prep_fitline(df_completeness_pds_viz %>% filter(completeness > 0)) %>%
-      sparkline_prep()
+      sparkline_prep() 
 
     df_results_sparkline <- prep_fitline(df_completeness_pds_viz) %>% 
-      sparkline_prep()
+      sparkline_prep() 
   
 # PLOT --------------------------------------------------------------------
   
@@ -294,7 +294,7 @@ period <- "Q2"
     filter(site_type == "All") %>% 
     ggplot(aes(hfr_pd, ou_sort, fill = completeness)) +
     geom_tile(color = "white", size = 0.25) +
-    geom_text(aes(label = ifelse(rank < 0.50, percent(completeness), NA_real_)),
+    geom_text(aes(label = ifelse(rank < 0.50, percent(round(completeness, 2)), NA_real_)),
               size = 2.5, colour = "gray30", na.rm = TRUE) +
     scale_fill_viridis_c(option = "A", direction = -1, labels = percent, end = 0.9, alpha = 0.85) +
     facet_wrap(~ indicator, nrow = 1) +
@@ -363,11 +363,11 @@ period <- "Q2"
       facet_wrap(site_type ~ indicator, nrow = 1) +
       #facet_grid(rev(site_type) ~ indicator, switch = "y") +
       labs(y = NULL, x = NULL,
-        caption = "Notes:
+        caption = paste0("Notes:
          (a) Completeness derived by comparing HFR reporting against sites with DATIM results/targets
          (b) Each dot represents an OU's Site x Mechanism completeness for each period
          (c) MER targets included as weighting in polynomial fit line
-         Source: FY20Q1 MER + HFR",
+         Source: FY20", quarter, " MER + HFR"),
         color = "Reporting completeness (100% = all sites reporting) ") +
       theme_minimal() + 
       theme(legend.position = "none",

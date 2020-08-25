@@ -16,6 +16,7 @@ library(extrafont)
 library(ggtext)
 library(extrafont)
 library(glamr)
+library(glitr)
 library(COVIDutilities)
 library(ISOcodes)
 
@@ -53,6 +54,10 @@ df_comp_pds_viz <-
 df_comp_wks_viz <- 
   list.files(out_folder, "HFR_Completeness_Q2_Wks_[[:digit:]]+\\.csv", full.names = TRUE) %>% 
   vroom()
+
+myuser <- "" #do not save
+iso_map <- identify_levels(username = myuser, password = mypwd(myuser)) %>% 
+  rename(iso = countryname_iso)
 
 # COVID DATA PULLS --------------------------------------------------------
 
@@ -152,7 +157,7 @@ df_comp_wks_viz <-
     max_date_covid <- df_stringency_wkly$date %>% max()
     max_date_hfr <- df_comp_wks_viz$date %>% max()
     min_date_hfr <- df_comp_wks_viz$date %>% min() # Min date distored by TX_CURR and TX_MMD
-    expand_dates <- as_tibble(seq.Date(as.Date("2019-12-30"), by = "week", length.out = 26)) %>% 
+    expand_dates <- as_tibble(seq.Date(as.Date("2019-12-30"), by = "week", length.out = 42)) %>% 
       rename(date = value)
     
   # Lengthen HFR so we can join to stringency index and have plots that run past end of HFR weeks
