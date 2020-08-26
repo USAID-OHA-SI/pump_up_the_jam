@@ -31,7 +31,7 @@
   color_all_sites <- "#D3D3D3"
 
   cc_thresh = 0.80
-  quarter <- "Q2"
+  quarter <- "Q3"
 
 
 # IMPORT ------------------------------------------------------------------
@@ -272,7 +272,7 @@
     ou_list <- df_cc %>% distinct(ou_id) %>% pull()
     
     plots <- map(.x = ou_list, .f = ~ hfr_cc_scplot(df_cc, ou_code = .x))
-    plots[7][[1]]
+    plots[9][[1]]
     
     #TODO: CREATE GLOBAL GRAPHIC WITH RESULTS AGGREGATED TO THE APPROPRIATE LEVEL
     
@@ -351,8 +351,8 @@
       scale_x_continuous(labels = percent) +
       scale_color_manual(values = c("#8C88BF", "#730E75"), guide = FALSE) +
       labs(x = NULL, y = NULL,
-           title = "HFR COMPLETENESS BETTER TREATMENT REPORTING \nTHAN TESTING IN FY20Q2",
-           caption = "Source: FY20Q2 MER + HFR") +
+           title = "HFR COMPLETENESS BETTER TREATMENT REPORTING \nTHAN TESTING IN FY20Q3",
+           caption = "Source: FY20Q3 MER + HFR") +
       theme(strip.placement = "outside",
             strip.text = element_text(face = "bold"),
             panel.border = element_rect(color = "gray60", fill = NA),

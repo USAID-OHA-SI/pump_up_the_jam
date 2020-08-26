@@ -22,7 +22,8 @@ quarter <- "Q3"
 # IMPORT ------------------------------------------------------------------
 
   #load joint HFR + DATIM dataset for FY20Q3 (created in Scripts/assemble_data_Q2.R)
-    df_joint <- list.files(out_folder, "HFR_DATIM_FY20Q3_[[:digit:]]+\\.csv", full.names = TRUE) %>% 
+    df_joint <- list.files(out_folder, paste0("HFR_DATIM_FY20", quarter, "_[[:digit:]]+\\.csv"), 
+                           full.names = TRUE) %>% 
       vroom(col_types = c(.default = "c"))  
   
     
@@ -33,13 +34,13 @@ quarter <- "Q3"
     
 #TODO: @ache - what are doing here for Q2? -> given the ask (and ease), let just make about Q2
 
-  #filter dates to keep within bounds of Q2 (full pd indicators use all weeks of pd) 
+  #filter dates to keep within bounds of Q3 (full pd indicators use all weeks of pd) 
     df_joint <- df_joint %>% 
       mutate(date = as_date(date)) %>% 
       filter((!indicator %in% c("TX_CURR", "TX_MMD") &
-             between(date, as.Date("2020-05-04"), as.Date("2020-06-29"))) |
+             between(date, as.Date("2020-01-20"), as.Date("2020-06-29"))) |
              (indicator %in% c("TX_CURR", "TX_MMD") &
-                between(date, as.Date("2020-05-04"), as.Date("2020-06-29")))) 
+                between(date, as.Date("2020-01-20"), as.Date("2020-06-29")))) 
     #check
       # df_joint %>%
       #   count(date, indicator) %>%
@@ -93,7 +94,7 @@ quarter <- "Q3"
     merge_flags <- function(df){
       
       #import volume weighting
-        df_datim_wgts <- list.files(out_folder, "DATIM_FLAGS_[[:digit:]]+\\.csv", full.names = TRUE) %>% 
+        df_datim_wgts <- return_latest(out_folder, "DATIM_FLAGS_[[:digit:]]+\\.csv")  %>% 
           vroom(col_types = c(.default = "d",
                               orgunituid = "c",
                               indicator = "c",
@@ -110,7 +111,6 @@ quarter <- "Q3"
                              by = c("orgunituid", "mech_code", "fy", "indicator"))
         
         return(df_wgts)
-        
     }
     
     

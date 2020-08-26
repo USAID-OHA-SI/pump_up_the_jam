@@ -380,7 +380,7 @@ period <- "Q3"
   # Return the two different plots
   spk_plot_nonzero <- sparkline_plot(df_results_nonzero_sparkline) + 
     labs(title = "FOCUSING ON IMPORTANT SITES PROVIDES BETTER REPORTING COMPLETENESS",
-      subtitle = "FY20Q1 Site x Mechanism HFR Reporting Completeness by Period")
+      subtitle = paste0("FY20", quarter, " Site x Mechanism HFR Reporting Completeness by Period"))
   
   ggsave(file.path(viz_folder,"HFR_Completeness_Pd_Trends_nonzero.png"), 
     plot = spk_plot_nonzero,
@@ -389,7 +389,7 @@ period <- "Q3"
   
   spk_plot_all <- sparkline_plot(df_results_sparkline) + 
     labs(title = "FOCUSING ON ALL SITES PROVIDES INFERIOR REPORTING COMPLETENESS",
-      subtitle = "FY20Q1 Site x Mechanism HFR Reporting Completeness by Period")
+      subtitle = paste0("FY20", quarter, " Site x Mechanism HFR Reporting Completeness by Period"))
   
   ggsave(file.path(viz_folder,"HFR_Completeness_Pd_Trends_all.png"), 
     plot = spk_plot_all,

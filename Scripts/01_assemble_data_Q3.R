@@ -105,7 +105,6 @@ library(glamr)
     # Remove those entries w/ funky dates
     hfr_all <- hfr_all %>% filter(fy != "2110")
 
-    
   # Check the data - check for non-numerical characters
     hfr_all %>% filter(!grepl('^[0-9]', val)) %>% 
       count(val, hfr_pd, date, fy) %>% 
@@ -165,14 +164,10 @@ library(glamr)
 # MERGE META --------------------------------------------------------------
 
   #import hierarchy
-    df_hierarchy <- file.path(datim_folder, "HFR_FY20_GLOBAL_orghierarchy_20200611.csv") %>% 
+    df_hierarchy <- file.path(datim_folder, "HFR_FY20_GLOBAL_orghierarchy_20200825.csv") %>% 
       read_csv() %>% 
       select(-level)
-    
-    df_hierarchy_new <- file.path(datim_folder, "HFR_FY20_GLOBAL_orghierarchy_20200819.csv") %>% 
-      read_csv() %>% 
-      select(-level)
-    
+
   #merge hierarchy onto joint file
     df_joint <- left_join(df_joint, df_hierarchy)
   
