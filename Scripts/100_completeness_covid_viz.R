@@ -55,7 +55,7 @@ df_comp_wks_viz <-
   list.files(out_folder, paste0("HFR_Completeness_", period, "_Wks_[[:digit:]]+\\.csv"), full.names = TRUE) %>% 
   vroom()
 
-myuser <- "tessam" #do not save
+myuser <- "" #do not save
 iso_map <- identify_levels(username = myuser, password = mypwd(myuser)) %>% 
   rename(iso = countryname_iso)
 
