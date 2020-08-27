@@ -285,23 +285,68 @@ library(ISOcodes)
     facet_wrap(~iso) +
     si_style() 
   
+  select_ous <- c("Kenya", "Nigeria", "Zambia", "Zimbabwe")
+  single_ou <- c("Zambia")
+  
   df_covid_stringe %>%
-    filter(operatingunit %in% top_tx) %>% 
+    filter(operatingunit %in%  "Zambia") %>% 
+    mutate(sort_var = fct_reorder(operatingunit, daily_cases, .desc = T)) %>% 
     ggplot(aes(x = date), group = operatingunit) +
     geom_vline(xintercept = as.Date("2020-04-01"), size = 0.5, color = grey20k) +
     geom_vline(xintercept = as.Date("2020-07-01"), size = 0.5, color = grey20k) +
-    geom_line(aes(y = if_else(cases> 1, cases, NA_real_))) + 
-    geom_area((aes(y = if_else(cases> 1, cases, NA_real_))), fill = grey10k, alpha = 0.75) +
-    geom_col(aes(y = 2, fill = (color)), alpha = 1) +
-    facet_wrap(~operatingunit) +
+    #geom_line(aes(y = if_else(cases> 1, daily_cases, NA_real_))) + 
+    geom_area((aes(y = if_else(cases> 0, daily_cases, NA_real_))), fill = grey40k, alpha = 0.85) +
+    geom_hline(yintercept = -2, size = 3, color = "white") +
+    geom_col(aes(y = -50, fill = (color)), alpha = 1) +
+    facet_wrap(~paste0(sort_var, "\n")) +
     scale_fill_identity() +
-    scale_y_log10() +
+    scale_x_date(limits = as.Date(c('2020-01-01','2020-08-26')),
+                 date_labels = "%b", date_breaks = "1 months") +
+    #scale_y_log10() +
     si_style_ygrid() +
-    labs(title = "COVID-19 CASES CONTINUE TO RISE INTO Q4",
+    labs(title = "DAILY COVID-19 CASES CONTINUE TO RISE INTO Q4",
+         caption = "Source: JHU COVID-19 feed + stringecy index from Blavatnik School of Government at Oxford University",
          x =NULL, y=NULL)
     
+  # Zambia Specific plots for POART Q3
+  library(zoo) # for rolling mean
+  
+  df_covid_stringe %>%
+    filter(operatingunit %in% c("Zambia")) %>% 
+    arrange(date) %>% 
+    group_by(operatingunit) %>% 
+    mutate(sort_var = fct_reorder(operatingunit, daily_cases, .desc = T),
+           seven_day = zoo::rollmean(daily_cases, 7, fill = NA, align = c("right")),
+           fourteen_day = zoo::rollmean(daily_cases, 14, fill = NA, align = c("right"))) %>% 
+    ungroup() %>% 
+    ggplot(aes(x = date), group = operatingunit) +
+    geom_rect(aes(xmin = as.Date("2020-04-01"), xmax = as.Date("2020-07-01"), ymin = 0, ymax = Inf), 
+              fill = grey10k, alpha = 0.05) +
+    geom_vline(xintercept = as.Date("2020-04-01"), size = 0.5, color = grey20k) +
+    geom_vline(xintercept = as.Date("2020-07-01"), size = 0.5, color = grey20k)+
+    #geom_line(aes(y = if_else(cases> 1, daily_cases, NA_real_))) + 
+    geom_col((aes(y = if_else(cases> 0, daily_cases, NA_real_))), fill = grey20k, alpha = 0.85) +
+    geom_area(aes(y = fourteen_day), fill = "#f7c5c4", alpha = 0.75) +
+    geom_line(aes(y = fourteen_day), color = "#d73636", size = 1) +
+    # geom_line(aes(y = zoo::rollmean(daily_cases, 14, fill = grey20k, align = c("right")))) +
+    #geom_hline(yintercept = -5, size = 2, color = "white") +
+    geom_col(aes(y = -50, fill = (color)), alpha = 1) +
+    geom_col(aes(y = -10), fill = "white") +
+    facet_wrap(~paste0(sort_var, "\n")) +
+    scale_fill_identity() +
+    scale_x_date(limits = as.Date(c('2020-03-01','2020-08-26')),
+                 date_labels = "%b", date_breaks = "1 months") +
+    #scale_y_log10() +
+    si_style_ygrid() +
+    labs(title = "DAILY COVID-19 CASES CONTINUE TO RISE INTO Q4",
+         caption = "Source: JHU COVID-19 feed + stringecy index from Blavatnik School of Government at Oxford University",
+         x =NULL, y=NULL)
   
   
+  
+  ggsave(file.path(viz_folder, "Q4_COVID_rise.png"),
+         plot = last_plot(), 
+         width = 10, height = 5.625, dpi = "retina")
   
   
   

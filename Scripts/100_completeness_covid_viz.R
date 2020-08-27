@@ -214,12 +214,12 @@ iso_map <- identify_levels(username = myuser, password = mypwd(myuser)) %>%
       #geom_col(aes(y = ymax), fill = grey10k, alpha = 0.4) +
       geom_segment(aes(y = 0, yend = 1, x = covid, xend = covid), colour = grey10k, size = 2, alpha = 0.80) +
       geom_col(fill = "#84c3be") +
-      geom_errorbar(aes(x = date, ymin = comp_trunc, ymax = comp_trunc), size = 0.5, width = 5, colour = "#27b7fb") +
+      geom_errorbar(aes(x = date, ymin = comp_trunc, ymax = comp_trunc), size = 0.5, width = 5, colour = "#52a8a2") +
       geom_hline(yintercept = 0, size = 2, colour = "white") +
       geom_hline(yintercept = 0, size = 0.25, colour = grey90k, fill = grey70k) +
       facet_wrap(~ou_order, nrow = 3) +
       scale_y_continuous(labels = percent, limits = c(-.15, 1)) +
-      scale_x_date(date_labels = "%b", date_breaks = "1 months", 
+      scale_x_date(date_labels = "%b", date_breaks = "2 months", 
                    limits = as.Date(c('2020-01-01','2020-08-25')))+
       scale_fill_identity() +
       #scale_fill_gradientn(colours = RColorBrewer::brewer.pal(7, 'OrRd'), na.value = "white") +
