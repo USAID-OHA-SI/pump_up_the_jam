@@ -91,18 +91,19 @@ library(glamr)
   # USING TABLEAU DATA + SERVER EXTRACTS -- pulled in the 00_setup.R file
     
   # Load data from most recent to least recent; Filtering as needed
-    hfr_pattern = c("08122020|06242020")
+    hfr_pattern = c("08242020|08122020|06242020")
     hfr_views <- list.files(path = here(hfr_in), pattern = hfr_pattern, full.names = TRUE)
     
  
   # Load periods incrementally b/c some have to be filtered.
     tmp <- map(hfr_views, ~hfr_read(.x))
     
-    hfr_all <- bind_rows(tmp[[1]] %>% as_tibble(), tmp[[2]] %>% as_tibble(), 
-                         tmp[[3]] %>% as_tibble() %>% filter(hfr_pd == 7),
-                         tmp[[4]] %>% as_tibble())
+    hfr_all <- bind_rows(tmp[[4]] %>% as_tibble(), 
+                         tmp[[3]] %>% as_tibble() %>% filter(hfr_pd != 9),
+                         tmp[[2]] %>% as_tibble(), 
+                         tmp[[1]] %>% as_tibble())
     
-    # Remove those entries w/ funky dates
+        # Remove those entries w/ funky dates
     hfr_all <- hfr_all %>% filter(fy != "2110")
 
   # Check the data - check for non-numerical characters
@@ -135,12 +136,12 @@ library(glamr)
     df_hfr <- hfr_all %>% 
       filter(grepl('^[0-9]', val)) %>% 
       mutate(val = as.numeric(val)) %>% 
-      group_by(orgunituid, mech_code, fy, date, indicator) %>% 
+      group_by(orgunituid, mech_code, fy, date, indicator, operatingunit) %>% 
       summarise_at(vars(val), sum, na.rm = TRUE) %>% 
       ungroup() %>% 
       mutate_all(as.character)
     
-  remove(list = ls(pattern = "hfr_p|hfr_all|tmp"))  
+
   
 # MERGE HFR + DATIM -------------------------------------------------------
 
@@ -164,7 +165,7 @@ library(glamr)
 # MERGE META --------------------------------------------------------------
 
   #import hierarchy
-    df_hierarchy <- file.path(datim_folder, "HFR_FY20_GLOBAL_orghierarchy_20200825.csv") %>% 
+    df_hierarchy <- file.path(datim_folder, "HFR_FY20_GLOBAL_orghierarchy_20200611.csv") %>% 
       read_csv() %>% 
       select(-level)
 
@@ -172,7 +173,7 @@ library(glamr)
     df_joint <- left_join(df_joint, df_hierarchy)
   
   #import mechanism info
-    df_mech <- file.path(datim_folder, "HFR_FY20_GLOBAL_mechanisms_20200824.csv") %>% 
+    df_mech <- file.path(datim_folder, "HFR_FY20_GLOBAL_mechanisms_20200611.csv") %>% 
       read_csv(col_types = c(.default = "c")) %>% 
       select(-operatingunit)
     
@@ -181,13 +182,15 @@ library(glamr)
         
   #arrange var order
     df_joint <- df_joint %>% 
+      filter(operatingunit != "South Africa") %>% 
       select(operatingunit:facility, orgunit, orgunituid, latitude, longitude,
              fundingagency, mech_code, mech_name, primepartner,
              fy, hfr_pd, date, 
              indicator,
-             val, mer_results, mer_targets) %>% 
-      filter(operatingunit != "South Africa")
+             val, mer_results, mer_targets)
+    
 
+      
 # EXPORT ------------------------------------------------------------------
 
   #store file name
@@ -195,4 +198,6 @@ library(glamr)
   
   #save
     write_csv(df_joint, file.path(out_folder, filename), na = "")
+    
+    remove(list = ls(pattern = "hfr_p|hfr_all|tmp"))    
 

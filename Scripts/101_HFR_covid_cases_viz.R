@@ -213,9 +213,7 @@ library(ISOcodes)
   
   rm(json)
   
-  # COVID CALENDAR ----------------------------------------------------------
-  
-  covid <- who_pandemic() %>% pull(date)
+# ALIGNMENT ----------------------------------------------------------
   
   # Aling HFR to COVID stingency so we can merge by date and OU
   df_stringency_date <- 
@@ -312,7 +310,7 @@ library(ISOcodes)
   library(zoo) # for rolling mean
   
   df_covid_stringe %>%
-    filter(operatingunit %in% c("Zambia")) %>% 
+    filter(operatingunit %in% select_ous) %>% 
     arrange(date) %>% 
     group_by(operatingunit) %>% 
     mutate(sort_var = fct_reorder(operatingunit, daily_cases, .desc = T),
@@ -320,7 +318,9 @@ library(ISOcodes)
            fourteen_day = zoo::rollmean(daily_cases, 14, fill = NA, align = c("right"))) %>% 
     ungroup() %>% 
     ggplot(aes(x = date), group = operatingunit) +
-    geom_rect(aes(xmin = as.Date("2020-04-01"), xmax = as.Date("2020-07-01"), ymin = 0, ymax = Inf), 
+    geom_rect(aes(xmin = as.Date("2020-03-01"), xmax = as.Date("2020-04-01"), ymin = 0, ymax = Inf), 
+              fill = grey10k, alpha = 0.05) +
+    geom_rect(aes(xmin = as.Date("2020-07-01"), xmax = as.Date("2020-08-26"), ymin = 0, ymax = Inf), 
               fill = grey10k, alpha = 0.05) +
     geom_vline(xintercept = as.Date("2020-04-01"), size = 0.5, color = grey20k) +
     geom_vline(xintercept = as.Date("2020-07-01"), size = 0.5, color = grey20k)+

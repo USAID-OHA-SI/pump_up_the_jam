@@ -15,6 +15,7 @@ library(scales)
 library(extrafont)
 library(ggtext)
 library(extrafont)
+library(Wavelength)
 library(glamr)
 library(glitr)
 library(COVIDutilities)
@@ -44,6 +45,8 @@ library(ISOcodes)
   
   start_date <- "2019-12-30"
   weeks <- 40
+  myuser <- "tessam"
+  
 
 # IMPORT ------------------------------------------------------------------
 
@@ -55,7 +58,6 @@ df_comp_wks_viz <-
   list.files(out_folder, paste0("HFR_Completeness_", period, "_Wks_[[:digit:]]+\\.csv"), full.names = TRUE) %>% 
   vroom()
 
-myuser <- "" #do not save
 iso_map <- identify_levels(username = myuser, password = mypwd(myuser)) %>% 
   rename(iso = countryname_iso)
 
@@ -177,20 +179,20 @@ iso_map <- identify_levels(username = myuser, password = mypwd(myuser)) %>%
   # Because we need a prinf() call -- checking that rename of countries is right
     df_comp_covid %>% count(operatingunit) %>% prinf()  
 
-    top_ous_pull <- function(indicator) {
+    top_ous_pull <- function(indicator, n = 10) {
       top_ous <- df_datim_wgts %>% 
         filter(operatingunit != "South Africa", indicator == {{indicator}}) %>% 
         mutate(operatingunit = if_else(operatingunit == "Democratic Republic of the Congo", "DRC", operatingunit)) %>% 
         group_by(operatingunit) %>% 
         summarise(tgts = mean(ou_targets, na.rm = TRUE)) %>% 
         arrange(desc(tgts)) %>% 
-        top_n(n = 10)%>% 
+        top_n(n = n)%>% 
         pull(operatingunit)
       return(top_ous)
     }
     
-    top_ous_HTS <- top_ous_pull("HTS_TST")
-    top_ous_TX  <- top_ous_pull("TX_NEW") 
+    top_ous_HTS <- top_ous_pull("HTS_TST", n = 10)
+    top_ous_TX  <- top_ous_pull("TX_NEW", n = 11) 
 
 # COMPLETENESS GRAPHS WITH STRINGENCY RUG ---------------------------------
 
@@ -208,11 +210,13 @@ iso_map <- identify_levels(username = myuser, password = mypwd(myuser)) %>%
       ungroup() %>% 
       mutate(ou_order = fct_reorder(paste0(operatingunit, " (", comma(mer_targets), ")", "\n"), mer_targets, .desc = TRUE)) %>% 
       ggplot(aes(x = date, y = completeness, group = ou_order)) +
-       geom_rect(aes(xmin = as.Date("2020-04-01"), xmax = as.Date("2020-06-30"), ymin = 0, ymax = 1), 
-                 fill = grey10k, alpha = 0.10) +
+      annotate("rect", xmin = as.Date("2020-01-01"), xmax = as.Date("2020-04-01"), ymin = 0, ymax = 1, 
+                 fill = grey10k, alpha = 0.5) +
+      annotate("rect", xmin = as.Date("2020-07-01"), xmax = as.Date("2020-08-25"), ymin = 0, ymax = 1, 
+                 fill = grey10k, alpha = 0.5) +
       geom_col(aes(y = covid_val, fill = (color)), alpha = 1) +
       #geom_col(aes(y = ymax), fill = grey10k, alpha = 0.4) +
-      geom_segment(aes(y = 0, yend = 1, x = covid, xend = covid), colour = grey10k, size = 2, alpha = 0.80) +
+      geom_segment(aes(y = 0, yend = 1, x = covid, xend = covid), colour = grey20k, size = 1, alpha = 0.80) +
       geom_col(fill = "#84c3be") +
       geom_errorbar(aes(x = date, ymin = comp_trunc, ymax = comp_trunc), size = 0.5, width = 5, colour = "#52a8a2") +
       geom_hline(yintercept = 0, size = 2, colour = "white") +
@@ -224,11 +228,12 @@ iso_map <- identify_levels(username = myuser, password = mypwd(myuser)) %>%
       scale_fill_identity() +
       #scale_fill_gradientn(colours = RColorBrewer::brewer.pal(7, 'OrRd'), na.value = "white") +
       si_style_ygrid() +
-      labs(x = NULL, y = NULL, title = paste0("WEEKLY ", indicator, " COMPLETENESS RATES SORTED BY LARGEST OUS USING FY20 TARGETS"),
+      labs(x = NULL, y = NULL, title = paste0("WEEKLY ", indicator, ": HFR REPORTING REMAINS LOW ACROSS VARYING STRINGENCY MEASURES"),
            caption = "Source: HFR Data + stringecy index from Blavatnik School of Government at Oxford University") +
       theme(legend.position = "none")
     return(p)
   }  
+    
     
     cness_covid_plot("HTS_TST", top_ous_HTS) 
       ggsave(file.path(viz_folder, "Q3_HFR_HTS_TST_completeness_covid_summary.png"),

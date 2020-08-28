@@ -10,6 +10,7 @@
 
 library(tidyverse)
 library(lubridate)
+library(glamr)
 library(vroom)
 
 
@@ -38,9 +39,9 @@ quarter <- "Q3"
     df_joint <- df_joint %>% 
       mutate(date = as_date(date)) %>% 
       filter((!indicator %in% c("TX_CURR", "TX_MMD") &
-             between(date, as.Date("2020-01-20"), as.Date("2020-06-29"))) |
+             between(date, as.Date("2020-01-20"), as.Date("2020-07-27"))) |
              (indicator %in% c("TX_CURR", "TX_MMD") &
-                between(date, as.Date("2020-01-20"), as.Date("2020-06-29")))) 
+                between(date, as.Date("2020-01-20"), as.Date("2020-07-27")))) 
     #check
       # df_joint %>%
       #   count(date, indicator) %>%
