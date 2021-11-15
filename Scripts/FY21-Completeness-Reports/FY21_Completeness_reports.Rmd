@@ -1,0 +1,280 @@
+---
+title: "`r params$country`- High Frequency Reporting Completeness FY21"
+author: "HFRG"
+date: "`r format(Sys.time(), '%Y-%m-%d')`"
+output: html_document
+params:
+ country: "Burundi"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE, warning = FALSE)
+
+#Dependencies
+library(tidyverse)
+library(vroom)
+library(glamr)
+library(glue)
+library(scales)
+library(gophr)
+library(lubridate)
+library(RColorBrewer)
+library(skimr)
+library(patchwork)
+library(ggrepel)
+library(glitr)
+library(janitor)
+library(extrafont)
+library(ggtext)
+library(gluedown)
+library(knitr)
+
+#load your s3 creds
+#setwd("C:/Users/STAR/Documents/Data")
+load_secrets()
+
+#inputs
+prefix <- "HFR_Tableau" #other two options for file types - HFR_Submission, Detailed
+outputfolder <- "C:/Users/STAR/Documents/Data"
+
+#identify latest file
+latest_file  <- glamr::s3_objects(
+  bucket = "gov-usaid",
+  prefix = glue::glue("ddc/uat/processed/hfr/outgoing/{prefix}")
+) %>%
+  dplyr::filter(last_modified == max(last_modified)) %>%
+  dplyr::pull(key)
+
+#download file
+
+#glamr::s3_download(
+  #bucket = "gov-usaid",
+ # object = latest_file,
+ # filepath = file.path(outputfolder, basename(latest_file))
+#)
+
+#read in file
+df <- vroom(file.path(outputfolder, basename(latest_file)))
+
+date <- "2021_11_12"
+
+#red
+flag_red <- brewer.pal(5, "OrRd")[5]
+
+```
+
+
+```{r, echo = FALSE}
+# AGGREGATE AND MUNGE -----------------------------------------------------
+#clean period name for viz later
+if("hfr_pd" %in% names(df))
+  df <- mutate(df, hfr_pd = paste0(fy, ".", str_pad(hfr_pd, 2, pad = "0")))
+
+# CREATE DF FOR OU and PARTNER ANALYSIS
+df_ag_ou <- df %>%
+  mutate_at(c("mer_results", "val"), ~replace(., is.na(.), 0)) %>% 
+  group_by(operatingunit, countryname, orgunituid,
+           fy, hfr_pd, date,
+           mech_code, expect_reporting,
+           indicator) %>% 
+  summarise_at(vars(mer_results, hfr_results = val), sum, na.rm = TRUE) %>%
+  ungroup()
+
+#COMPLETENESS
+# create flags for # of sites by mech code that are reporting HFR
+# remove when there is not data from DATIM and there is a value in row
+
+df_ag_ou <- df_ag_ou %>% 
+  group_by(orgunituid, mech_code) %>% 
+  mutate(has_hfr_reporting = ifelse(hfr_results > 0, TRUE, FALSE),
+         is_datim_site = expect_reporting == TRUE) %>% 
+  ungroup() %>% 
+  filter(!(has_hfr_reporting == TRUE & is_datim_site == FALSE)) %>% 
+  filter_at(vars(hfr_results, mer_results), any_vars(.!=0))
+
+#aggregate across all sites in operatingunit
+df_ag_ou <- df_ag_ou %>% 
+  group_by(operatingunit, indicator,hfr_pd, date) %>% 
+  summarise_at(vars(has_hfr_reporting, is_datim_site), sum, na.rm = TRUE) %>% 
+  ungroup()
+
+#calculate completeness
+df_comp_ou <- df_ag_ou %>% 
+  mutate(completeness = case_when(is_datim_site >  0 ~ has_hfr_reporting / is_datim_site)) 
+
+```
+
+# At a Glance
+
+### This purpose of this report is to provide a snapshot of your OU's HFR Reporting Completeness in FY21. 
+
+
+
+Here's your average HFR reporting completeness by indicator across FY21.
+
+```{r echo = FALSE, results = 'asis'}
+#average reporting completeness by indicator for OU in FY21 HFR periods
+df_comp_ou_table <- df_comp_ou %>%
+  filter(operatingunit == params$country,
+         str_detect(hfr_pd, "2021")) %>% 
+  group_by(indicator) %>% 
+  summarise(mean = mean(completeness)) %>% 
+  mutate(mean = percent(mean)) %>% 
+  pivot_wider(names_from = indicator, values_from = mean)
+
+knitr::kable(df_comp_ou_table)
+```
+
+
+
+Here's where you stand among other OUs in FY21. This heatmap is ordered from highest reporting completeness to lowest. 
+```{r, echo = FALSE, fig.asp = 0.8, fig.width = 10}
+#month
+month <- max(df$date) %>% lubridate::month(label = TRUE) %>% as.character()
+yr <- max(df$date) %>% lubridate::year()
+
+#order countries
+lst_order_tx <- df %>%
+  filter(indicator == "TX_CURR",
+         date == max(date)) %>%
+  count(operatingunit, wt = mer_targets, sort = TRUE) %>%
+  pull(operatingunit)
+
+#heatmap by country and indicator
+df_viz_heat_ou <- df_comp_ou %>%
+  filter(indicator != "HTS_TST") %>%
+  dplyr::mutate(#order_tx_curr = case_when(indicator == "TX_CURR" ~ val),
+    # operatingunit = fct_reorder(operatingunit, order_tx_curr, sum, na.rm = TRUE),
+  #operatingunit = factor(operatingunit, lst_order_tx), #this is where cameroon drops out
+    # hfr_pd = str_sub(hfr_pd, -2),
+    indicator = factor(indicator, c("TX_CURR", "TX_MMD", "TX_NEW",
+                                    "HTS_TST", "HTS_TST_POS",
+                                    "VMMC_CIRC", "PrEP_NEW"
+    )),
+    completeness = ifelse(is.infinite(completeness), NA, completeness),
+    comp_lab = case_when(completeness <.75 ~ completeness),
+    operatingunit = as.factor(operatingunit),
+    operatingunit = fct_reorder(operatingunit, completeness),
+    comp_bin = case_when(is.na(completeness) ~ NA_character_,
+                         completeness == 0 ~ "0%",
+                         completeness <= .25 ~ "1-25%",
+                         completeness <= .5 ~ "26-50%",
+                         completeness <= .75 ~ "51-75%",
+                         TRUE ~ "75+%"
+    )) 
+
+bold.ou <- params$country
+bold.labels <- ifelse(levels(df_viz_heat_ou$operatingunit) %in% bold.ou, yes = "bold", no = "plain")
+
+df_viz_heat_ou %>%
+  #filter(operatingunit == "Burundi") %>% 
+  ggplot(aes(hfr_pd, operatingunit, fill = comp_bin)) +
+  geom_tile(color = "white") +
+  # geom_text(aes(label = percent(completeness,1), color = completeness > .75),
+  #          family = "Source Sans Pro", size = 2.5, na.rm = TRUE) +
+  facet_grid(~ indicator) +
+  scale_fill_brewer(palette = "OrRd", direction = -1) +
+  scale_color_manual(values = c("gray10", "gray50")) +
+  #scale_y_discrete(labels = c("params$country"= expression(bold(params$country)))) +
+  #scale_y_discrete(labels = function(x) highlight(x, params$country)) +
+  labs(x = NULL, y = NULL,
+       title = "OU Reporting Completeness",
+       subtitle = "FY21 mechanism x site completeness of reporting by period",
+       #caption = glue("data as of HFR {month} {yr} [{date}]"
+                      ) +
+  si_style_nolines() +
+  # coord_fixed(ratio = 1) +
+  theme(legend.position = "top",
+        legend.title = element_blank(),
+        legend.justification = c(0, 0),
+        panel.grid = element_blank(),
+        axis.text.x = element_blank(),
+        axis.text.y = element_text(face = bold.labels),
+        strip.text = element_text(hjust = 0))
+
+```
+
+## Partner Reporting Completeness
+
+```{r, echo = FALSE}
+
+# CREATE DF FOR PARTNER ---------------------------------------------------------
+
+df_ag_partner <- df %>%
+  mutate_at(c("mer_results", "val"), ~replace(., is.na(.), 0)) %>% 
+  group_by(operatingunit, countryname, orgunituid,
+           fy, hfr_pd, date,
+           mech_code, primepartner, expect_reporting,
+           indicator) %>% 
+  summarise_at(vars(mer_results, hfr_results = val), sum, na.rm = TRUE) %>%
+  ungroup()
+
+df_ag_partner <- df_ag_partner %>% 
+  group_by(orgunituid, mech_code) %>% 
+  mutate(has_hfr_reporting = ifelse(hfr_results > 0, TRUE, FALSE),
+         is_datim_site = expect_reporting == TRUE) %>% 
+  ungroup() %>% 
+  filter(!(has_hfr_reporting == TRUE & is_datim_site == FALSE)) %>% 
+  filter_at(vars(hfr_results, mer_results), any_vars(.!=0))
+
+df_ag_partner <- df_ag_partner %>% 
+  group_by(operatingunit, indicator,hfr_pd, mech_code, primepartner, date) %>% 
+  summarise_at(vars(has_hfr_reporting, is_datim_site), sum, na.rm = TRUE) %>% 
+  ungroup()
+
+df_ag_partner_comp <- df_ag_partner %>% 
+  mutate(completeness = case_when(is_datim_site >  0 ~ has_hfr_reporting / is_datim_site)) 
+
+#heatmap by country and indicator
+df_viz_heat_partner <- df_ag_partner_comp %>%
+  filter(indicator != "HTS_TST") %>%
+  dplyr::mutate(#order_tx_curr = case_when(indicator == "TX_CURR" ~ val),
+    # operatingunit = fct_reorder(operatingunit, order_tx_curr, sum, na.rm = TRUE),
+   # operatingunit = factor(operatingunit, lst_order_tx), #this is where cameroon drops out
+    # hfr_pd = str_sub(hfr_pd, -2),
+    indicator = factor(indicator, c("TX_CURR", "TX_MMD", "TX_NEW",
+                                    "HTS_TST", "HTS_TST_POS",
+                                    "VMMC_CIRC", "PrEP_NEW"
+    )),
+    completeness = ifelse(is.infinite(completeness), NA, completeness),
+    comp_lab = case_when(completeness <.75 ~ completeness),
+    comp_bin = case_when(is.na(completeness) ~ NA_character_,
+                        completeness == 0 ~ "0%",
+                        completeness <= .25 ~ "1-25%",
+                        completeness <= .5 ~ "26-50%",
+                        completeness <= .75 ~ "51-75%",
+                        TRUE ~ "75+%"
+    )) 
+
+```
+
+Here's a snapshot of your partner reporting completeness across indicators
+
+```{r, echo = FALSE, fig.asp = 0.8, fig.width = 10}
+# HEATMAP BY PARTNER -------------------------------
+
+df_viz_heat_partner %>%
+  filter(operatingunit == params$country,
+         !is.na(comp_bin)) %>% 
+  ggplot(aes(hfr_pd, fct_rev(primepartner), fill = comp_bin)) +
+  geom_tile(color = "white") +
+  # geom_text(aes(label = percent(completeness,1), color = completeness > .75),
+  #           family = "Source Sans Pro", size = 2.5, na.rm = TRUE) +
+  facet_grid(~ indicator) +
+  scale_fill_brewer(palette = "OrRd", direction = -1) +
+  scale_color_manual(values = c("gray10", "gray50")) +
+  labs(x = NULL, y = NULL,
+       title = "Partner Reporting Completeness",
+       subtitle = "FY21 mechanism x site completeness of reporting by period",
+       caption = glue("data as of HFR {month} {yr} [{date}]")) +
+  si_style_nolines() +
+  #coord_fixed(ratio = 1) +
+  theme(legend.position = "top",
+        legend.title = element_blank(),
+        legend.justification = c(0, 0),
+        panel.grid = element_blank(),
+        axis.text.x =  element_blank(),
+        strip.text = element_text(hjust = 0))
+
+```
+
