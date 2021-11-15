@@ -35,7 +35,7 @@ load_secrets()
 
 #inputs
 prefix <- "HFR_Tableau" #other two options for file types - HFR_Submission, Detailed
-outputfolder <- "C:/Users/STAR/Documents/Data"
+outputfolder <- "C:/Users/STAR/Documents/Data" #change to desired output folder
 
 #identify latest file
 latest_file  <- glamr::s3_objects(
@@ -45,10 +45,10 @@ latest_file  <- glamr::s3_objects(
   dplyr::filter(last_modified == max(last_modified)) %>%
   dplyr::pull(key)
 
-#download file
+#download file - un-comment the below code chunk if you dont have the latest file pulled down!
 
 #glamr::s3_download(
-  #bucket = "gov-usaid",
+ # bucket = "gov-usaid",
  # object = latest_file,
  # filepath = file.path(outputfolder, basename(latest_file))
 #)
@@ -56,7 +56,7 @@ latest_file  <- glamr::s3_objects(
 #read in file
 df <- vroom(file.path(outputfolder, basename(latest_file)))
 
-date <- "2021_11_12"
+date <- "2021_11_15"
 
 #red
 flag_red <- brewer.pal(5, "OrRd")[5]
