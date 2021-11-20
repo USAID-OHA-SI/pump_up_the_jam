@@ -28,7 +28,7 @@ pal <- viridis_pal()(6) #%>% show_col()
 color_hv_sites <- pal[1]
 color_ref <- "gray30" #"#C8C8C8"
 color_all_sites <- "#D3D3D3"
-period <- "Q3"
+quarter <- "Q3"
 
 # IMPORT ------------------------------------------------------------------
 
@@ -38,6 +38,10 @@ period <- "Q3"
   
     df_completeness_pds_viz <- list.files(out_folder, paste0("HFR_Completeness_", quarter, "_Pds_[[:digit:]]+\\.csv"), full.names = TRUE) %>% 
       vroom()
+    
+    df_completeness_wks_viz <- list.files(out_folder, paste0("HFR_Completeness_", quarter, "_Wks_[[:digit:]]+\\.csv"), full.names = TRUE) %>% 
+      vroom()
+    
     
 
 # MUNGE -------------------------------------------------------------------
@@ -77,6 +81,14 @@ period <- "Q3"
                                        operatingunit == "Dominican Republic" ~ "DR",
                                        operatingunit == "Western Hemisphere Region" ~ "WH Region",
                                        TRUE ~ operatingunit))
+    
+  #clean up OU names
+    df_completeness_wks_viz <- df_completeness_wks_viz %>% 
+      mutate(operatingunit = case_when(operatingunit == "Democratic Republic of the Congo" ~ "DRC",
+                                       operatingunit == "Dominican Republic" ~ "DR",
+                                       operatingunit == "Western Hemisphere Region" ~ "WH Region",
+                                       TRUE ~ operatingunit)) %>% 
+      filter(site_type == "All")
     
   
   # Run lowess regression on each indicator + site type with time as the xvar.
@@ -162,6 +174,7 @@ period <- "Q3"
   # Prep data frames needed for sparklines; Collapse function called within ggplot function 
     df_heatmap <- heatmap_prep(df_completeness_pds_viz, ind_sel)
     df_heatmap_all <- heatmap_prep(df_completeness_pds_viz, c("HTS_TST", "HTS_TST_POS", "TX_NEW", "VMMC_CIRC", "PrEP_NEW", "TX_CURR", "TX_MMD"))
+    df_heatmap_wks <- heatmap_prep(df_heatmap_wks, c("HTS_TST", "HTS_TST_POS", "TX_NEW", "VMMC_CIRC", "PrEP_NEW", "TX_CURR", "TX_MMD"))
     
     df_results_nonzero_sparkline <- prep_fitline(df_completeness_pds_viz %>% filter(completeness > 0)) %>%
       sparkline_prep() 

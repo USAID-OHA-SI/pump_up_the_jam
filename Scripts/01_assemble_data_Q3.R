@@ -25,14 +25,14 @@ library(glamr)
 
   start_date <- "2019-09-30"
   weeks <- 40
-  datim_folder <- "Data"
+  datim_folder <- "Data/DATIM"
   out_folder <- "Dataout"
   quarter <- "Q3"
   data_in <- "Data"
 
   # https://drive.google.com/drive/u/0/folders/1qHHXtxTWmJHplzQr0qqak95kxK5ZHfle
   # files from above link
-  hfr_in <- "../../HFR/Views" 
+  hfr_in <- "Data" 
 
   #establish OAuth
   #drive_auth()
@@ -165,7 +165,7 @@ library(glamr)
 # MERGE META --------------------------------------------------------------
 
   #import hierarchy
-    df_hierarchy <- file.path(datim_folder, "HFR_FY20_GLOBAL_orghierarchy_20200611.csv") %>% 
+    df_hierarchy <- file.path(datim_folder, "HFR_FY20_GLOBAL_orghierarchy_20200825.csv") %>% 
       read_csv() %>% 
       select(-level)
 
@@ -173,7 +173,7 @@ library(glamr)
     df_joint <- left_join(df_joint, df_hierarchy)
   
   #import mechanism info
-    df_mech <- file.path(datim_folder, "HFR_FY20_GLOBAL_mechanisms_20200611.csv") %>% 
+    df_mech <- file.path(datim_folder, "HFR_FY20_GLOBAL_mechanisms_20200824.csv") %>% 
       read_csv(col_types = c(.default = "c")) %>% 
       select(-operatingunit)
     

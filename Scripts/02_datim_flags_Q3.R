@@ -18,7 +18,7 @@
   
   
     hfr_folder <- "Data"
-    datim_folder <- "Data"
+    datim_folder <- "Data/DATIM"
     out_folder <- "Dataout"
     viz_folder <- "Images"
     quarter <- "Q3"
