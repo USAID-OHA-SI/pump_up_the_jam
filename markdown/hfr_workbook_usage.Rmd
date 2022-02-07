@@ -1,0 +1,106 @@
+---
+title: "hfr_workbook_usage"
+author: "A.Chafetz"
+date: "11/20/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r libs, message=FALSE, warning=FALSE, include=FALSE}
+  library(tidyverse)
+  library(glitr)
+  library(glamr)
+  library(gophr)
+  library(extrafont)
+  library(scales)
+  library(tidytext)
+  library(patchwork)
+  library(ggtext)
+  library(glue)
+  library(vroom)
+  library(janitor)
+  library(lubridate)
+
+```
+```{r global vars, message=FALSE, warning=FALSE, include=FALSE}
+session_pd <- 15 #minutes
+```
+
+
+```{r import, message=FALSE, warning=FALSE, include=FALSE}
+
+  path <- "C:/Users/achafetz/Downloads/TableauServer_post-gres_usage_20211110.zip"  
+  df <- vroom(path) %>% 
+    clean_names() %>% 
+     mutate(created_at = mdy_hms(created_at))
+
+```
+
+```{r}
+  df_owner <- df %>% 
+      filter(event_type_name == "Publish Workbook") %>% 
+      group_by(workbook_name) %>%
+      filter(created_at == max(created_at, na.rm = TRUE)) %>% 
+      ungroup() %>% 
+      select(workbook_name, workbook_owner = user_name)
+      
+    df <- left_join(df, df_owner)
+  
+  df_hfr <- df %>% 
+    filter(workbook_name == "HFR Dashboard",
+           event_type_name == "Access View",
+           user_name != workbook_owner) 
+  
+  df_hfr <- df_hfr %>% 
+    arrange(user_name, view_name, created_at) %>%
+    group_by(user_name, view_name) %>% 
+    mutate(unique_view = created_at == min(created_at) | 
+             created_at > (lag(created_at) + minutes(15))) %>% 
+    ungroup() %>% 
+    group_by(user_name) %>% 
+    mutate(unique_session = created_at == min(created_at) | 
+             created_at > (lag(created_at) + minutes(15))) %>% 
+    ungroup()
+  
+```
+
+
+## HFR Workbook Usage
+
+HFR is in a unique situation where outside of the HFRG, the only way to access and/or use HFR data through the main HFR workbook on Tableau Server. In reviewing the workbook usage, we can get a sense of who and how HFR data is being used. 
+
+## Data Background and Assumptions
+
+Tableau Server collects usage stats on a variety of things related to how a user interacts with a workbook. We were able to obtain an output of the post gres database from M/CIO that coveres the periods from `r min(df_hfr$created_at) %>% format("%B %d")` through `r max(df_hfr$created_at) %>% format("%B %d")`. The dataset is limited, providing stats on access time per worksheet and does not offer any insights into view duration or how the user is interacting with the workbook.
+
+Monthly HFR data are due on the 15th of each month, so this dataset covers the update release across 6 periods. The workbook is updated that day or the next with the submissiond depending on how long the run took in the Development Data Commons (DDC). The workbook is typically updates a couple times with late submissions or fixes in the first week and usually one to three more times over the month. An update email is sent to HFR POCs in country and OHA when the HFR workbook is first update, so we expect to see most usage occuring in the day or two after that (around the 16th-20th of the month or so).
+
+The HFR workbook limits country access to only see the data they submit, requiring the use of User Groups, allowing us to track what countries are utilizing HFR data. Users at headquarters are all lumped into a OHA user group.
+
+HFR data is required, but does not necessary mean it's being used (reporting completeness still remains a challenge after two years of data collection). Some countries may have separate reporting systems that they rely upon and not utilize the HFR workbook or output data.
+
+The HFR workbook consists of 6 tabs: Intro, HFR Reporting, Reporting Completeness, Partner Completeness, Scorecard, and Data Download. The two most important tabs are the HFR Reporting, which provides aggregated/filterable trend data across all indicator, and Reporting Completeness, which show the trend in completeness where the denominator is the number of sites expected to report (using a country provided list and MER results reporting). 
+
+As the workbook owner, I have removed myself from the viewing stats.
+
+
+## Overview
+
+The HFR workbook over the dataset period has `r comma(nrow(df_hfr))` "access views". It's unclear what constitutes a "view" given we have some user having multiple views within a few minutes. To clean this up, I have defined a session as `r session_pd` minutes; if a users has multiple entries within a `r session_pd` minute span from the initial interaction, this will just count as one view or session. Across the 6 months, there were `r unique(df_hfr$user_name) %>% length %>% comma()` unique users that has `r filter(df_hfr, unique_session) %>% nrow() %>% comma()` unique sessions.
+
+```{r cars}
+df_hfr %>% 
+  mutate(week = floor_date(created_at, "week", week_start = 1) %>% as_date) %>% 
+  count(week, wt = unique_session, name = "session_count") %>% 
+  ggplot(aes(week, session_count)) +
+  geom_col(alpha = .8) +
+  scale_y_continuous(label = comma) +
+  scale_x_date(date_breaks = "1 month", date_labels = "") +
+  labs(x = NULL, y = NULL,
+       title = "HFR WORKBOOK VIEW SESSIONS",
+       subtitle = "Number of unique sessions each week") + 
+  si_style_ygrid()
+```
