@@ -5,7 +5,7 @@ author: "Author Name"
 date: "Date"
 output: 
   pagedreport::paged_windmill:
-    logo: "https://user-images.githubusercontent.com/5873344/173617022-823180d5-57e4-40da-875b-0025eb9f976a.jpg"
+    front_img: "https://github.com/USAID-OHA-SI/pump_up_the_jam/blob/assess_hfr/images/casey-horner-265UjRsLgd8-unsplash.svg"
     img_to_dark: FALSE
     logo_to_white: TRUE
 knit: pagedown::chrome_print
