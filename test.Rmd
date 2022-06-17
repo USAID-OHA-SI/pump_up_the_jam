@@ -1,24 +1,92 @@
 ---
-title: "Title of the report"
-subtitle: "Subtitle of the report"
-author: "Author Name"
-date: "Date"
+title: "Assessing High Frequency Reporting Data"
+subtitle: "Is the juice worth the squeeze?"
+author: "Tim Essam | SI"
+date: "2022-06"
 output: 
   pagedreport::paged_windmill:
-    front_img: "https://github.com/USAID-OHA-SI/pump_up_the_jam/blob/assess_hfr/images/casey-horner-265UjRsLgd8-unsplash.svg"
-    img_to_dark: FALSE
+    front_img: "https://images.unsplash.com/photo-1542785291-fe3faea39066?ixlib=rb-1.2.1&ixid=MnwxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8&auto=format&fit=crop&w=1888&q=80"
+    logo: "https://www.svgrepo.com/show/307767/discovery-discover-find-investigate.svg"
+    img_to_dark: TRUE
     logo_to_white: TRUE
 knit: pagedown::chrome_print
-main-color: "#6cabdd"
+main-color: "#1e87a5"
 ---
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_chunk$set(echo = TRUE, cache = T)
+library(tidyverse)
+library(flextable)
+#source("Scripts/200_hfr_assessment_summary.R")
+
 ```
 
-# This is part 1 {-}
+# High Frequency Reporting Overview {-}
 
-## Second level {-}
+PEPFAR focuses on using data-driven approaches to pivot programs as needed to best control the HIV/AIDS epidemic. To have more “real-time” tracking of results, and opportunities for data to inform course corrections, the USAID’s Office of HIV/AIDS (OHA) began collecting, processing, and analyzing country datasets on a more frequent basis than quarterly PEPFAR MER reporting beginning in July 2019. High Frequency Reporting (HFR) data was envisioned as an early-warning system, providing important signals about areas that could be changed or adapted to increase impact to achieve targets and results. USAID’s PEPFAR Global Award Modification in October 2019 provided the mandate for HFR to be collected every four weeks with weekly disaggregation and occurring in site or community with MER targets for testing, treatment (new and current), PrEP initiation, voluntary male circumcisions, and multi-month dispensing of ARVs. With the spread of COVID-19, OHA relaxed the reporting requires to a monthly basis. 
+
+The purpose of this assessment is to look at multiple dimensions of the HFR process. Specifically, this report will consider the cost of HFR processes in terms of the number of parties involved at each step. It then pivots to assessing how complete and correct HFR data are -- as this is an unofficial data stream not subject to the rigors of data entered into DATIM. Finally, the report concludes with a series of recommendations.
+
+
+## What is High Frequency Reporting?   {-}
+High Frequency Reporting (HFR, hereafter), refers to custom indicator data submitted by USAID implementing partners based on terms outline in the Global Award Modification from October 2019.  
+
+
+## Statistics about HFR  {-}
+The USAID OHA supports `r `ou_count` operating units, comprised of `r `cntry_count` countries. Across all operating units, there are `r mech_count` mechanisms being implemented in `r `site_count` sites.
+
+#### Summary Table of HFR Sites by Operating Unit
+
+```{r}
+flextable(ou_rpt_tble_tot) %>% 
+  set_caption(., caption = "Summary of Sites Reporting Per OU / Indicator") %>% 
+  add_footer_lines(., "Source: HFR")
+
+library(gt)
+library(gtExtras)
+library(scales)
+ou_rpt_tble_sh %>% 
+  gt() %>% 
+  sub_missing(everything(), 
+              missing_text = "-") %>% 
+  fmt_number(columns = where(is.integer), sep_mark = ",", decimals = 0) %>% 
+    gt_merge_stack(col1 = HTS_TST, col2 = HTS_TST_sh) %>% 
+    gt_merge_stack(col1 = HTS_TST_POS, col2 = HTS_TST_POS_sh) %>% 
+    gt_merge_stack(col1 = PrEP_NEW, col2 = PrEP_NEW_sh) %>% 
+    gt_merge_stack(col1 = TX_CURR, col2 = TX_CURR_sh) %>% 
+    gt_merge_stack(col1 = TX_MMD, col2 = TX_MMD_sh) %>% 
+    gt_merge_stack(col1 = TX_NEW, col2 = TX_NEW_sh) %>% 
+    gt_merge_stack(col1 = VMMC_CIRC, col2 = VMMC_CIRC_sh)
+```
+
+
+### Operating Unit Level {-}
+How many individuals are implicated in the effort of submission by OU?
+How many partners are submitting per OU?
+Of these partners, how many are local partners?
+How many sites are submitting per OU? What percent of sites are included in each submission?
+How many sites are submitting per Partner? What percent of sites are included in each submission?
+ 
+### Headquarters Level {-}
+How many individuals are involved in HFR at HQ?
+What is the LOE per individual per HFR submission?
+What is the general process for submission?
+How are the data stored? 
+What is the optimal storage mode?
+A relational database housed in a cloud-based server available via a direct connection
+Relational database would consistent of DATIM when, where, who and what tables
+
+
+### Overall {-}
+
+Total OUs submitting?
+Total individuals implicated in the HFR submission process at Mission level?
+Total individuals implicated in the HFR submission process by IP?
+How many total IPs are submitting?
+How many total sites are submitting?
+Per submission, how many data points are captured by site X Mech X indicator X disaggregate
+
+
 
 This file is what a user will see when they select your template. Make sure that you update the fields in the yaml header. In particular you will want to update the `output` field to whatever format your template requires.
 
@@ -28,7 +96,7 @@ This file is what a user will see when they select your template. Make sure that
 
 This is a good place to demonstrate special features that your template provides. Ideally it should knit out-of-the-box, or at least contain clear instructions as to what needs changing.
 
-## Second level {-}
+##  {-}
 
 Finally, be sure to remove this message!
 This file is what a user will see when they select your template. Make sure that you update the fields in the yaml header. In particular you will want to update the `output` field to whatever format your template requires.

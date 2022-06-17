@@ -13,6 +13,7 @@
 *.png
 *.twbx
 *.pptx
+
 #no data
 *.csv
 *.txt
@@ -27,3 +28,5 @@
 #nothing from these folders
 GIS/*
 Graphics/*
+Dataout/*
+Images/*
