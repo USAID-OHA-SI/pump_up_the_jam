@@ -95,9 +95,11 @@
                color = completeness)) +
     geom_point(aes(size = site_mech_ind_combos), alpha = .2,
                position = position_jitter(width = .1, height = .01, seed = 42)) +
-    geom_point(data = df_avg, size = 15, shape = 18) +
-    geom_text(data = df_avg, color = "white", size = 11/.pt,
-               aes(label = percent(completeness, 1))) +
+    # geom_point(data = df_avg, size = 15, shape = 18) +
+    geom_point(data = df_avg, size = 15, alpha = .4) +
+    geom_text(data = df_avg, color = "white", size = 13/.pt,
+               aes(label = percent(completeness, 1)),
+              family = "Source Sans Pro SemiBold") +
     scale_y_continuous(label = percent) +
     scale_color_si("denims", reverse = FALSE, na.value = "white",
                   label = percent) +
@@ -110,7 +112,7 @@
     si_style_ygrid() +
     theme(legend.position = "none")
 
-  si_save("Images/FY21_HFR_completeness.png",
+  si_save("Images/FY21_HFR_completeness3.png",
           width = 9.27)  
 
   
