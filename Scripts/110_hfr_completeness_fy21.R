@@ -114,3 +114,33 @@
           width = 9.27)  
 
   
+  
+  df_viz %>% 
+    ggplot(aes(month, completeness,
+               color = completeness)) +
+    geom_point(aes(size = site_mech_ind_combos), alpha = .2,
+               position = position_jitter(width = .1, height = .01, seed = 42)) +
+    geom_errorbar(data = df_avg, 
+                  aes(ymin = completeness, ymax = completeness),
+                  width = .5, alpha = .7, color = matterhorn) +
+    geom_text(data = df_avg, color = matterhorn, size = 8/.pt,
+              aes(label = percent(completeness, 1)),
+              hjust = -.9) +
+    # geom_point(data = df_avg, size = 15, shape = 18) +
+    # geom_text(data = df_avg, color = "white", size = 11/.pt,
+    #           aes(label = percent(completeness, 1))) +
+    scale_y_continuous(label = percent) +
+    scale_color_si("denims", reverse = FALSE, na.value = "white",
+                   label = percent) +
+    coord_cartesian(clip = "off") +
+    expand_limits(y = 1) +
+    labs(x = NULL, y = NULL, fill = "Completeness",
+         title = glue("The average reporting completeness across countries for FY21 was {percent(mean(df_viz$completeness, na.rm = TRUE))}") %>% toupper,
+         subtitle = "Circles represent each country's submission completeness, proportionally sized to the number of expected reporting points",
+         caption = glue("Source: HFR Tableau Output FY21 | Ref ID: {ref_id}")) +
+    si_style_ygrid() +
+    theme(legend.position = "none")
+  
+  si_save("Images/FY21_HFR_completeness2.png",
+          width = 9.27)  
+  
