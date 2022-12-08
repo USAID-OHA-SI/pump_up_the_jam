@@ -1,10 +1,10 @@
 # PROJECT:  pump up the jam
 # AUTHOR:   A.Chafetz | USAID
-# PURPOSE:  review completeness for FY21
+# PURPOSE:  review completeness
 # REF ID:   335f52c3 
 # LICENSE:  MIT
 # DATE:     2022-10-31
-# UPDATED:  2022-11-03
+# UPDATED:  2022-12-08
 
 # DEPENDENCIES ------------------------------------------------------------
   
@@ -23,14 +23,17 @@
   
   ref_id <- "335f52c3"
 
+  
 # IMPORT ------------------------------------------------------------------
   
+  #https://drive.google.com/file/d/1wzCdAfMZ_VW6ekzr3TWcZYCP7-VzZFL4/view?usp=share_link
   df_hfr <- return_latest("Data", "Tableau") %>% 
-    hfr_read() %>% 
-    filter(between(date, as.Date("2020-10-01"), as.Date("2021-09-01")))
+    hfr_read() 
 
 # MUNGE -------------------------------------------------------------------
 
+  df_hfr <- df_hfr %>% 
+    filter(between(date, as.Date("2021-10-01"), as.Date("2022-09-01")))
   
   df_agg <- df_hfr %>% 
     rename(hfr_results = val) %>% 
@@ -61,6 +64,8 @@
   
   mean(df_viz$completeness, na.rm = TRUE)
   
+  curr_fy <- unique(df_hfr$fy) %>% str_replace("20", "FY")
+  
   df_viz %>% 
     mutate(completeness = na_if(completeness, 0)) %>% 
     ggplot(aes(month, fct_reorder(countryname, site_mech_ind_combos, max),
@@ -74,14 +79,14 @@
     scale_fill_si("denims", reverse = FALSE, na.value = "white",
                   label = percent) +
     labs(x = NULL, y = NULL, fill = "Completeness",
-         title = glue("The average reporting completeness across countries for FY21 was {percent(mean(df_viz$completeness, na.rm = TRUE))}") %>% toupper,
+         title = glue("The average reporting completeness across countries for {curr_fy} was {percent(mean(df_viz$completeness, na.rm = TRUE))}") %>% toupper,
          subtitle = "Reporting completeness for all indicators, mechanisms, and sites",
-         caption = glue("Source: HFR Tableau Output FY21 | Ref ID: {ref_id}")) +
+         caption = glue("Source: HFR Tableau Output {curr_fy} | Ref ID: {ref_id}")) +
     si_style_nolines() +
     theme(legend.position = "none",
           axis.text.y = element_text(size = 6))
   
-  si_save("Images/FY21_HFR_completeness_by_cntry.png",
+  si_save(glue("Images/{curr_fy}_HFR_completeness_by_cntry.png"),
           width = 9.27)  
   
   df_avg <- df_viz %>% 
@@ -106,13 +111,13 @@
     coord_cartesian(clip = "off") +
     expand_limits(y = 1) +
     labs(x = NULL, y = NULL, fill = "Completeness",
-         title = glue("The average reporting completeness across countries for FY21 was {percent(mean(df_viz$completeness, na.rm = TRUE))}") %>% toupper,
+         title = glue("The average reporting completeness across countries for {curr_fy} was {percent(mean(df_viz$completeness, na.rm = TRUE))}") %>% toupper,
          subtitle = "Circles represent each country's submission completeness, proportionally sized to the number of expected reporting points",
-         caption = glue("Source: HFR Tableau Output FY21 | Ref ID: {ref_id}")) +
+         caption = glue("Source: HFR Tableau Output {curr_fy} | Ref ID: {ref_id}")) +
     si_style_ygrid() +
     theme(legend.position = "none")
 
-  si_save("Images/FY21_HFR_completeness3.png",
+  si_save(glue("Images/{curr_fy}_HFR_completeness3.png"),
           width = 9.27)  
 
   
@@ -137,12 +142,12 @@
     coord_cartesian(clip = "off") +
     expand_limits(y = 1) +
     labs(x = NULL, y = NULL, fill = "Completeness",
-         title = glue("The average reporting completeness across countries for FY21 was {percent(mean(df_viz$completeness, na.rm = TRUE))}") %>% toupper,
+         title = glue("The average reporting completeness across countries for {curr_fy} was {percent(mean(df_viz$completeness, na.rm = TRUE))}") %>% toupper,
          subtitle = "Circles represent each country's submission completeness, proportionally sized to the number of expected reporting points",
-         caption = glue("Source: HFR Tableau Output FY21 | Ref ID: {ref_id}")) +
+         caption = glue("Source: HFR Tableau Output {curr_fy} | Ref ID: {ref_id}")) +
     si_style_ygrid() +
     theme(legend.position = "none")
   
-  si_save("Images/FY21_HFR_completeness2.png",
+  si_save(glue("Images/{curr_fy}_HFR_completeness2.png"),
           width = 9.27)  
   
