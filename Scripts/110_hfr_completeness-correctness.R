@@ -17,6 +17,7 @@
   library(patchwork)
   library(ggtext)
   library(Wavelength)
+  library(rcartocolor)
   
 
 # GLOBAL VARIABLES --------------------------------------------------------
@@ -128,9 +129,142 @@
     theme(legend.position = "none",
           axis.text.y = element_text(size = 6))
   
-  si_save(glue("Images/{curr_fy}_HFR_completeness_by_cntry.png"),
-          width = 9.27)  
   
+  # What if we visualize this with 12 dots that are filled based on 5 colors that bin reporting?
+  # Let's also bin the OUs into high, medium, and low site counts to create some facets we can use to break up the viz
+  # Checked using ntile(site_mech_ind_combos, 3) and determined reasonable cuts to be 200 sites, 200-1000, 1000+
+  # Can we add in a new row that would show the average completeness for the year by ou? Month = Ave
+  # Looked into row binding using group_modify(~add_rows(.x, .after = Inf)) but would pry take as many lines
+  # to create cumulative totals as just creating a new df and binding it on
+  df_comp_viz_cat <- 
+    df_comp_viz %>% 
+    mutate(site_size = case_when(
+      between(site_mech_ind_combos, 0, 200) ~ "low",
+      between(site_mech_ind_combos, 200, 1000) ~ "medium",
+      TRUE ~ "high"
+    ),
+      site_size = fct_relevel(site_size, c("high", "medium", "low"))
+    ) 
+  
+  df_comp_viz_cat %>% 
+    filter(date == max(date)) %>% 
+    arrange(site_size, desc(site_mech_ind_combos)) %>% 
+    prinf()
+  
+  
+  # Create a month order vector so you don't have to type the darned things, moving All to the end
+  month_order <- c(levels(df_comp_viz_cat$month), "All")
+  
+  # Create a new dataframe that contains the annual ave completeness
+  # Bind this on to the viz_cat frame so we can plot annual completeness
+  df_comp_annual <- 
+    df_comp_viz_cat %>% 
+    group_by(countryname, site_size) %>% 
+    summarise(across(where(is.integer), sum, na.rm = T)) %>% 
+    ungroup() %>% 
+    mutate(completeness = has_hfr_reporting / site_mech_ind_combos,
+           month = "All", 
+           missing_sites = site_mech_ind_combos-has_hfr_reporting)
+  
+  
+  # Grab 5 colors from rcartocolor DarkSunset
+  pal <- carto_pal(n = 5, name = "SunsetDark") 
+  
+  # Need to add a max site # b/c for some OUs the max # changes across year
+  # For the max sites, we need the second highest max value b/c the max is the total count across the year
+  df_comp_viz_cat %>% 
+    bind_rows(df_comp_annual) %>% 
+    mutate(month = fct_relevel(month, month_order)) %>% 
+    group_by(countryname) %>% 
+    mutate(max_sites = max(site_mech_ind_combos[-which.max(site_mech_ind_combos)])) %>% 
+    fill(., max_sites, .direction = "down") %>%  
+    ungroup() %>% 
+    mutate(completeness = na_if(completeness, 0),
+           ylabel = fct_reorder(paste0(countryname, " (", comma(max_sites), ")"), site_mech_ind_combos, max)) %>%
+    ggplot(aes(x = month, y = ylabel, fill = completeness)) +
+    geom_tile(color = "white") +
+    geom_text(aes(label = percent(completeness, 1)),
+              family = "Source Sans Pro", color = "white", size = 7/.pt) +
+    facet_wrap(~site_size, scales = "free_y") +
+    scale_fill_stepsn(colours = pal,
+                      limits = c(0, 1),
+                      breaks = seq(0, 1, 0.2),
+                      na.value = grey10k, 
+                      labels = percent) +
+    scale_x_discrete(position = "top", 
+                     breaks = c("Oct", "Jan", "Apr", "Jul", "All")) +
+    si_style_nolines(facet_space = 0.75) +
+    si_legend_fill() +
+    theme(strip.placement = "outside", 
+          legend.position = "none") +
+    labs(x = NULL, y = NULL, fill = "Completeness",
+         title = glue("The average reporting completeness across countries for {curr_fy} was {percent(mean(df_comp_viz$completeness, na.rm = TRUE))}") %>% toupper,
+         subtitle = "Reporting completeness for all indicators, mechanisms, and sites",
+         caption = glue("Source: HFR Tableau Output {curr_fy} | Ref ID: {ref_id}")) 
+  
+    si_save("Graphics/HFR_completeness_by_country.svg", scale = 1.25)
+  
+
+
+  # What is the reporting rate by size of OUs
+  # Could add these to the viz if we wanted? may be too much
+    df_comp_viz_cat %>% 
+      group_by(site_size) %>% 
+      summarise(comp_rate = percent(sum(has_hfr_reporting, na.rm = T)/sum(site_mech_ind_combos, na.rm = T)))
+    
+  # Do we see a COP drop? not really  
+    df_comp_viz_cat %>% 
+      group_by(site_size, month) %>% 
+      summarise(comp_rate = percent(sum(has_hfr_reporting, na.rm = T)/sum(site_mech_ind_combos, na.rm = T))) %>% 
+      spread(month, comp_rate)
+    
+ # Create a histogram of the completeness that will serve as the legend 
+  df_comp_viz_cat %>%
+    mutate(hist_fill = case_when(
+      between(completeness, 0.0001, .2) ~ pal[1],
+      between(completeness, 0.2, .4) ~ pal[2],
+      between(completeness, 0.4, .6) ~ pal[3],
+      between(completeness, 0.6, .80) ~ pal[4],
+      between(completeness, 0.80, 1) ~ pal[5],
+      completeness == 0 ~ grey10k
+    ))%>% 
+    ggplot(aes(x = completeness)) +
+    geom_vline(xintercept = mean(df_comp_viz_cat$completeness, na.rm = TRUE), linewidth = 0.75, color = grey90k) +
+    geom_histogram(aes(fill = hist_fill), bins = 100, color = "white") +
+    geom_hline(yintercept = seq(0, 84, 1), color = "white") +
+    scale_fill_identity() +
+    si_style_xline() +
+    coord_cartesian(expand = F) +
+    scale_x_continuous(labels = percent, breaks = seq(0, 1, .2)) +
+    labs(x = NULL, y = NULL)
+  
+  # Need 7.9043 by 2.7341 to fit in the designated AI space
+  si_save("Graphics/HFR_completeness_histogram.svg", width = 7.9043, height = 2.7341)
+
+  
+  
+  df_comp_viz_cat %>%
+    filter(site_size == "large") %>% 
+    group_by(countryname) %>% 
+    mutate(max_sites = max(site_mech_ind_combos)) %>% 
+    ungroup() %>% 
+    mutate(completeness = na_if(completeness, 0),
+           ylabel = fct_reorder(paste0(countryname, " (", comma(max_sites), ")"), site_mech_ind_combos, max, .desc = T)) %>%
+    ggplot(aes(x = month, y = completeness)) +
+    geom_col(aes(y = 1), fill = grey20k, width = 0.5) +
+    geom_point(aes(fill = completeness), width = 0.5) +
+    facet_wrap(~ylabel, ncol = 2) +
+    scale_fill_stepsn(colours = rcartocolor::carto_pal(n = 5, name = "SunsetDark"),
+                      limits = c(0, 1),
+                      breaks = seq(0, 1, 0.2),
+                      na.value = grey10k, 
+                      labels = percent) +
+    si_style_nolines(facet_space = 0.2) +
+    si_legend_fill() +
+    scale_y_continuous(labels = percent) +
+    scale_x_discrete(breaks = c("Oct", "Jan", "Apr", "Jul")) +
+    theme(axis.text.y = element_blank())
+
 
 # VIZ - COMPLETENESS: COUNTRY SCATTER -------------------------------------
 
@@ -171,7 +305,6 @@
 
 # VIZ - CORRECTNESS -------------------------------------------------------
 
-
   df_corr_combo %>%
     filter(indicator %ni% c("HTS_TST", "TX_MMD")) %>% 
     ggplot(aes(mer_results, hfr_results, color = completeness)) +
@@ -179,10 +312,10 @@
     geom_abline(slope = 1, linetype = "dashed") +
     geom_point(alpha = .4) +
     facet_wrap(~indicator, scales = "free") +
-    scale_x_continuous(label = label_number(scale_cut = cut_short_scale())) +
-    scale_y_continuous(label = label_number(scale_cut = cut_short_scale())) +
-    # scale_x_log10(label = label_number(scale_cut = cut_short_scale())) +
-    # scale_y_log10(label = label_number(scale_cut = cut_short_scale())) +
+    #scale_x_continuous(label = label_number(scale_cut = cut_short_scale())) +
+    #scale_y_continuous(label = label_number(scale_cut = cut_short_scale())) +
+    scale_x_log10(label = label_number(scale_cut = cut_short_scale())) +
+    scale_y_log10(label = label_number(scale_cut = cut_short_scale())) +
     scale_color_si("denims", reverse = FALSE, na.value = "white",
                    label = percent) +
     labs(x = "MER", y = "HFR", color = "Completeness",
