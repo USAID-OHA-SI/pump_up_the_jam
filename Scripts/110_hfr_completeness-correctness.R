@@ -4,7 +4,7 @@
 # REF ID:   335f52c3 
 # LICENSE:  MIT
 # DATE:     2022-10-31
-# UPDATED:  2022-12-08
+# UPDATED:  2022-12-12
 
 # DEPENDENCIES ------------------------------------------------------------
   
@@ -32,9 +32,18 @@
 
 # MUNGE -------------------------------------------------------------------
 
+  #limit to latest full FY
   df_hfr <- df_hfr %>% 
     filter(between(date, as.Date("2021-10-01"), as.Date("2022-09-01")))
   
+  #clean up country names for viz
+  df_hfr <- df_hfr %>% 
+    mutate(countryname = recode(countryname,
+                                "Democratic Republic of the Congo" = "DRC",
+                                "Papua New Guinea" = "PNG",
+                                "Dominican Republic" = "DR"))
+  
+  #aggregate to site level, id if reporting occured (ie non-zero)
   df_agg <- df_hfr %>% 
     rename(hfr_results = val) %>% 
     filter(expect_reporting == TRUE) %>% 
@@ -50,6 +59,7 @@
 
 # MUNGE COMPLETENESS ------------------------------------------------------
 
+  #aggregate site counts and reporting up to country level for completeness
   df_comp <- df_agg %>% 
     group_by(countryname, date) %>% 
     summarise(has_hfr_reporting = sum(has_hfr_reporting),
@@ -57,26 +67,28 @@
               .groups = "drop") %>% 
     mutate(completeness = has_hfr_reporting /site_mech_ind_combos)
   
+  #order months
   df_comp_viz <- df_comp %>% 
-    mutate(month = format(date, "%b") %>% fct_inorder,
-           countryname = recode(countryname,
-                                "Democratic Republic of the Congo" = "DRC",
-                                "Papua New Guinea" = "PNG",
-                                "Dominican Republic" = "DR")) 
+    mutate(month = format(date, "%b") %>% fct_inorder) 
   
 
 # MUNGE CORRECTNESS -------------------------------------------------------
 
+  #sum non-snapshot indicators and pull the last obs for TX_CURR/MMD
   df_corr <- df_agg %>% 
     filter(indicator %ni% c("TX_CURR", "TX_MMD")) %>% 
     bind_rows(df_agg %>% 
                 filter(indicator %in% c("TX_CURR", "TX_MMD"),
-                       date == max(date))) %>% 
+                       hfr_results > 0) %>% 
+                group_by(orgunituid, mech_code, indicator) %>% 
+                filter(date == max(date)) %>% 
+                ungroup()) %>% 
     select(-starts_with("mer")) %>% 
     mutate(fy = unique(df_hfr$fy)) %>% 
     # filter(has_mer_reporting == TRUE) %>% 
     count(countryname, fy, indicator, wt = hfr_results, name = "hfr_results")
 
+  #aggregate fiscal year results and targets by country
   df_targets_ou <- df_hfr %>% 
     filter(date == max(date),
            indicator != "TX_MMD") %>% 
@@ -85,11 +97,13 @@
               .groups = "drop") %>% 
     filter(!(mer_targets == 0 & mer_results == 0))
   
+  #add MMD targets by duplicating TX_CURR & renaming
   df_targets_ou <- df_targets_ou %>% 
     bind_rows(df_targets_ou %>% 
                 filter(indicator == "TX_CURR") %>% 
                 mutate(indicator = "TX_MMD"))
   
+  #country level completeness for comparision in plots
   df_comp_ou_full_fy <- df_agg %>% 
     group_by(countryname, indicator) %>% 
     summarise(has_hfr_reporting = sum(has_hfr_reporting),
@@ -97,6 +111,7 @@
               .groups = "drop") %>% 
     mutate(completeness = has_hfr_reporting /site_mech_ind_combos)
   
+  #bind correctness, targets, and completeness together
   df_corr_combo <- df_corr %>% 
     full_join(df_targets_ou, by = c("countryname", "indicator")) %>% 
     relocate(mer_targets, .after = -1) %>% 
@@ -106,8 +121,10 @@
   
 # VIZ - COMPLETENESS: COUNTRY HEATMAP -------------------------------------
 
+  #curr FY for plot source info
   curr_fy <- unique(df_hfr$fy) %>% str_replace("20", "FY")
   
+  #plot completeness heatmap table (OUxPeriodxCompleteness) 
   df_comp_viz %>% 
     mutate(completeness = na_if(completeness, 0)) %>% 
     ggplot(aes(month, fct_reorder(countryname, site_mech_ind_combos, max),
@@ -134,12 +151,14 @@
 
 # VIZ - COMPLETENESS: COUNTRY SCATTER -------------------------------------
 
+  #create avg completeness for all USAID 
   df_avg <- df_comp_viz %>% 
     group_by(date) %>% 
     summarise(completeness = sum(has_hfr_reporting, na.rm = TRUE) / sum(site_mech_ind_combos, na.rm = TRUE),
               .groups = "drop") %>% 
     mutate(month = format(date, "%b") %>% fct_inorder )
     
+  #plot distribution of completeness overlaid by agency value
   df_comp_viz %>% 
     ggplot(aes(month, completeness,
                color = completeness)) +
