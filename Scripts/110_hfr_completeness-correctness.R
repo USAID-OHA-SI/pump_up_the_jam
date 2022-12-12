@@ -17,12 +17,14 @@
   library(patchwork)
   library(ggtext)
   library(Wavelength)
+  library(rcartocolor)
   
 
 # GLOBAL VARIABLES --------------------------------------------------------
   
   ref_id <- "335f52c3"
 
+  pal <- carto_pal(n = 5, name = "SunsetDark") %>% rev()
   
 # IMPORT ------------------------------------------------------------------
   
@@ -92,7 +94,7 @@
   df_targets_ou <- df_hfr %>% 
     filter(date == max(date),
            indicator != "TX_MMD") %>% 
-    group_by(countryname, indicator) %>% 
+    group_by(fy, countryname, indicator) %>% 
     summarise(across(starts_with("mer"), sum, na.rm = TRUE),
               .groups = "drop") %>% 
     filter(!(mer_targets == 0 & mer_results == 0))
@@ -113,10 +115,28 @@
   
   #bind correctness, targets, and completeness together
   df_corr_combo <- df_corr %>% 
-    full_join(df_targets_ou, by = c("countryname", "indicator")) %>% 
+    full_join(df_targets_ou, by = c("fy", "countryname", "indicator")) %>% 
+    filter(mer_results != 0) %>% 
+    mutate(hfr_results = ifelse(is.na(hfr_results), 0, hfr_results)) %>% 
     relocate(mer_targets, .after = -1) %>% 
     mutate(correctness = hfr_results / mer_results) %>% 
-    full_join(df_comp_ou_full_fy, by = c("countryname", "indicator"))
+    full_join(df_comp_ou_full_fy, by = c("countryname", "indicator")) %>% 
+    arrange(countryname, indicator)
+  
+  #relative size of country's results (by indicator) for plotting
+  df_corr_viz <- df_corr_combo %>% 
+    group_by(indicator) %>% 
+    mutate(rel_ind_results_size = mer_results / sum(mer_results, na.rm = TRUE)) %>% 
+    ungroup() %>% 
+    mutate(weight_order = case_when(indicator == "TX_CURR" ~ mer_results),
+           fill_val = case_when(correctness > 2 ~ 1,
+                                correctness > 1 ~ correctness - 1, 
+                                TRUE ~ 1 - correctness),
+           fill_color = case_when(fill_val <= .2 ~ pal[1],
+                                  fill_val <= .4 ~ pal[2],
+                                  fill_val <= .6 ~ pal[3],
+                                  fill_val <= .8 ~ pal[4],
+                                  fill_val >  .8 ~ pal[5]) )
   
   
 # VIZ - COMPLETENESS: COUNTRY HEATMAP -------------------------------------
@@ -191,7 +211,7 @@
 # VIZ - CORRECTNESS -------------------------------------------------------
 
 
-  df_corr_combo %>%
+  df_corr_viz %>%
     filter(indicator %ni% c("HTS_TST", "TX_MMD")) %>% 
     ggplot(aes(mer_results, hfr_results, color = completeness)) +
     geom_blank(aes(hfr_results, mer_results)) +
@@ -210,5 +230,38 @@
          caption = glue("Source: HFR Tableau Output {curr_fy} | Ref ID: {ref_id}")) +
     si_style() +
     theme(aspect.ratio = 1)
+  
+  df_corr_viz %>% 
+    filter(indicator %ni% c("HTS_TST", "TX_MMD")) %>%
+    mutate(indicator = factor(indicator, c("HTS_TST_POS", "TX_NEW",
+                                           "TX_CURR", "PrEP_NEW", "VMMC_CIRC"))) %>% 
+    ggplot(aes(correctness, fct_reorder(countryname, weight_order, sum, na.rm = TRUE), color = fill_color)) +
+    annotate("rect",
+             xmin = .8, xmax = 1.2,
+             ymin = -Inf, ymax = Inf,
+             fill = "#EBEBEB", alpha = .4) +
+    geom_vline(aes(xintercept = 1), color = matterhorn, linetype = "dotted") +
+    geom_segment(aes(x = correctness, xend = 1, yend = countryname), 
+                 linewidth = 1.3, na.rm = TRUE) +
+    geom_point(aes(size = rel_ind_results_size), color = "white", na.rm = TRUE) +
+    geom_point(aes(size = rel_ind_results_size), alpha = .8, na.rm = TRUE) +
+    facet_grid(~indicator) +
+    scale_x_continuous(label = percent,
+                       position = "top",
+                       limit = c(0, 2),
+                       breaks = seq(0, 2, by = .5),
+                       oob = oob_squish) +
+    scale_color_identity() +
+    coord_cartesian(clip = "off") +
+    labs(x = NULL, y = NULL,
+         title = "Outside of TX_CURR, OU-level annual HFR values do not closely track to MER" %>% toupper,
+         subtitle = "How close are HFR reported values to MER annual values in DATIM?",
+         caption =glue("Note: Countries ordered by MER TX_CURR results
+                       Source: HFR Tableau Output {curr_fy} | Ref ID: {ref_id}") ) +
+    si_style_xgrid() +
+    theme(legend.position = "off",
+          strip.placement = "outside",
+          strip.text = element_text(hjust = .5, face = "bold"))
+
   
   
