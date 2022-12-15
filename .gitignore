@@ -25,6 +25,7 @@
 *.pptx
 
 #nothing from these folders
+AI/*
 GIS/*
 Images/*
 Graphics/*
